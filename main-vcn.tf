@@ -1,5 +1,5 @@
-
-# ===== Variables =====
+# ====== VCN ==========
+# ----- Variables -----
 variable "vcn_name" { 
     type = string 
     description = "The name for the VCN that will be provisioned within the second root compartment"
@@ -16,7 +16,7 @@ variable "vcn_cidr_blocks" {
     default = ["10.0.0.0/16"]
 }
 
-# ====== Module Definition ======
+# ------ Module Definition ------
 # Source from https://registry.terraform.io/modules/oracle-terraform-modules/vcn/oci/
 # Guide from https://docs.oracle.com/en-us/iaas/Content/dev/terraform/tutorials/tf-vcn.htm
 module "vcn-1" {
@@ -24,7 +24,7 @@ module "vcn-1" {
   version = "3.6.0"
 
   # Required Inputs
-  compartment_id = oci_identity_compartment.second-root-compartment.compartment_id
+  compartment_id = oci_identity_compartment.second-root-compartment.id
 
   # Optional Inputs 
   region = var.region
@@ -42,7 +42,7 @@ module "vcn-1" {
   depends_on = [ oci_identity_compartment.second-root-compartment ]
 }
 
-# ==== Output =====
+# ---- Output -----
 # Outputs for the vcn module
 output "vcn_id" {
   description = "OCID of the VCN that is created"
@@ -51,4 +51,73 @@ output "vcn_id" {
 output "id-for-route-table-that-includes-the-internet-gateway" {
   description = "OCID of the internet-route table. This route table has an internet gateway to be used for public subnets"
   value = module.vcn-1.ig_route_id
+}
+
+
+# ====== Private Subnet Security List ==========
+# Source from https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_security_list
+resource "oci_core_security_list" "private-security-list"{
+
+  # Required
+  compartment_id = oci_identity_compartment.second-root-compartment.id
+  vcn_id = module.vcn-1.vcn_id
+
+  # Optional
+  display_name = "${var.vcn_name}-private-subnet-security-list"
+
+  # EGRESS SECURITY RULES GUIDE: https://docs.oracle.com/en-us/iaas/Content/dev/terraform/tutorials/tf-vcn.htm#customize-network
+  egress_security_rules {
+        stateless = false
+        destination = "0.0.0.0/0" # change this a Service CIDR if you wish to communicate between oracle services (eg databases)
+        destination_type = "CIDR_BLOCK"
+        protocol = "all" 
+    }
+
+  # INGRESS SECURITY RULES GUIDE: https://docs.oracle.com/en-us/iaas/Content/dev/terraform/tutorials/tf-vcn.htm#customize-network
+  ingress_security_rules { 
+      stateless = false
+      source = "10.0.0.0/16"
+      source_type = "CIDR_BLOCK"
+      # Get protocol numbers from https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml TCP is 6
+      protocol = "6"
+      tcp_options { 
+          min = 22
+          max = 22
+      }
+    }
+
+  ingress_security_rules { 
+      stateless = false
+      source = "0.0.0.0/0"
+      source_type = "CIDR_BLOCK"
+      # Get protocol numbers from https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml ICMP is 1  
+      protocol = "1"
+  
+      # For ICMP type and code see: https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml
+      icmp_options {
+        type = 3
+        code = 4
+      } 
+    }   
+  
+  ingress_security_rules { 
+      stateless = false
+      source = "10.0.0.0/16"
+      source_type = "CIDR_BLOCK"
+      # Get protocol numbers from https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml ICMP is 1  
+      protocol = "1"
+  
+      # For ICMP type and code see: https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml
+      icmp_options {
+        type = 3
+      } 
+    }
+}
+
+
+output "private-security-list-name" {
+  value = oci_core_security_list.private-security-list.display_name
+}
+output "private-security-list-OCID" {
+  value = oci_core_security_list.private-security-list.id
 }
