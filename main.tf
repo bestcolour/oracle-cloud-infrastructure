@@ -39,6 +39,7 @@ resource "oci_identity_compartment" "second_root_compartment" {
 }
 
 # ========= IP ADDRESSES ============
+# https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_public_ip#lifetime-7
 resource "oci_core_public_ip" "main_reserved_public_ip" {
     #Required
     compartment_id = oci_identity_compartment.second_root_compartment.id
