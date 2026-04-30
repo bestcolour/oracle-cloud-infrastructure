@@ -9,7 +9,7 @@ This project will hold all the golden source code for setting up my own infrastr
 # Setup & Instruction to Use
 
 ## How to find values for terraform.tfvars
-Setup your variables by creating "terraform.tfvars" file and filling in the values found in the example below:
+Setup your terraform variables by creating "terraform.tfvars" file and filling in the values found in the example below:
 
 ```hcl
 # Tenancy and User Information
@@ -22,6 +22,10 @@ private_key_path = #TO DO, SET THIS PATH TO THE VOLUME MOUNTED PATH WITHIN DOCKE
 
 # Infrastructure Region
 region           = "us-ashburn-1"
+
+vcn_name = "vcn-1"
+vcn_dns_label = "ohnoooo"
+vcn_cidr_blocks = ["10.0.0.0/16"]
 ```
 
 To find these identifiers in the Oracle Cloud Infrastructure (OCI) console, you can think of it in two main stops: your **Tenancy** details and your **User** details.
