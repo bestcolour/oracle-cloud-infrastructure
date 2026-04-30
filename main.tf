@@ -28,13 +28,12 @@ provider "oci" {
 }
 
 
-# ===== Root Resources =====
+# ===== Compartments  =====
 # define all the resources here
-resource "oci_identity_compartment" "second-root-compartment" {
+resource "oci_identity_compartment" "second_root_compartment" {
     # Required
     compartment_id = var.tenancy_ocid # change this to var.tenancy_ocid if you just want your minecraft server compartment to be under the root compartment else set it to a compartment id that you want this minecraft server to be in
     description = "Second Root Compartment. This compartment is just acts like another root compartment that allows for automated tear down of resources since the root compartment does not allow that"
-    name = "second-root-compartment"
+    name = "second_root_compartment"
     enable_delete = true
 }
-

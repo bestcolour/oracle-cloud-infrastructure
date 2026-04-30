@@ -19,12 +19,12 @@ variable "vcn_cidr_blocks" {
 # ------ Module Definition ------
 # Source from https://registry.terraform.io/modules/oracle-terraform-modules/vcn/oci/
 # Guide from https://docs.oracle.com/en-us/iaas/Content/dev/terraform/tutorials/tf-vcn.htm
-module "main-vcn" {
+module "main_vcn" {
   source  = "oracle-terraform-modules/vcn/oci"
   version = "3.6.0"
 
   # Required Inputs
-  compartment_id = oci_identity_compartment.second-root-compartment.id
+  compartment_id = oci_identity_compartment.second_root_compartment.id
 
   # Optional Inputs 
   region = var.region
@@ -39,28 +39,28 @@ module "main-vcn" {
   vcn_dns_label = var.vcn_dns_label
   vcn_cidrs = var.vcn_cidr_blocks
 
-  depends_on = [ oci_identity_compartment.second-root-compartment ]
+  depends_on = [ oci_identity_compartment.second_root_compartment ]
 }
 
 # ---- Output -----
 # Outputs for the vcn module
 output "vcn_id" {
   description = "OCID of the VCN that is created"
-  value = module.main-vcn.vcn_id
+  value = module.main_vcn.vcn_id
 }
-output "id-for-route-table-that-includes-the-internet-gateway" {
+output "id_for_route_table_that_includes_the_internet_gateway" {
   description = "OCID of the internet-route table. This route table has an internet gateway to be used for public subnets"
-  value = module.main-vcn.ig_route_id
+  value = module.main_vcn.ig_route_id
 }
 
 
 # ====== Private Subnet Security List ==========
 # Source from https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_security_list
-resource "oci_core_security_list" "main-vcn-private-security-list"{
+resource "oci_core_security_list" "main_vcn_private_security_list"{
 
   # Required
-  compartment_id = oci_identity_compartment.second-root-compartment.id
-  vcn_id = module.main-vcn.vcn_id
+  compartment_id = oci_identity_compartment.second_root_compartment.id
+  vcn_id = module.main_vcn.vcn_id
 
   # Optional
   display_name = "${var.vcn_name}-private-subnet-security-list"
@@ -115,11 +115,11 @@ resource "oci_core_security_list" "main-vcn-private-security-list"{
 }
 
 
-output "private-security-list-name" {
-  value = oci_core_security_list.main-vcn-private-security-list.display_name
+output "private_security_list_name" {
+  value = oci_core_security_list.main_vcn_private_security_list.display_name
 }
-output "private-security-list-OCID" {
-  value = oci_core_security_list.main-vcn-private-security-list.id
+output "private_security_list_OCID" {
+  value = oci_core_security_list.main_vcn_private_security_list.id
 }
 
 
@@ -128,38 +128,38 @@ output "private-security-list-OCID" {
 # ====== Private Subnet ==============
 # Source from https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_subnet
 
-resource "oci_core_subnet" "main-vcn-private-subnet"{
+resource "oci_core_subnet" "main_vcn_private_subnet"{
 
   # Required
-  compartment_id = oci_identity_compartment.second-root-compartment.id
-  vcn_id = module.main-vcn.vcn_id
+  compartment_id = oci_identity_compartment.second_root_compartment.id
+  vcn_id = module.main_vcn.vcn_id
   cidr_block = "10.0.1.0/24"
  
   # Optional
   # Caution: For the route table id, use module.vcn.nat_route_id.
   # Do not use module.vcn.nat_gateway_id, because it is the OCID for the gateway and not the route table.
-  route_table_id = module.main-vcn.nat_route_id
-  security_list_ids = [oci_core_security_list.main-vcn-private-security-list.id]
+  route_table_id = module.main_vcn.nat_route_id
+  security_list_ids = [oci_core_security_list.main_vcn_private_security_list.id]
   display_name = "${var.vcn_name}-private-subnet"
 }
 
 
 # ------ Outputs for private subnet -------------
 output "private-subnet-name" {
-  value = oci_core_subnet.main-vcn-private-subnet.display_name
+  value = oci_core_subnet.main_vcn_private_subnet.display_name
 }
 output "private-subnet-OCID" {
-  value = oci_core_subnet.main-vcn-private-subnet.id
+  value = oci_core_subnet.main_vcn_private_subnet.id
 }
 
 
 # ====== Public Subnet Security List ==========
 # Source from https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_security_list
-resource "oci_core_security_list" "main-vcn-public-security-list"{
+resource "oci_core_security_list" "main_vcn_public_security_list"{
 
   # Required
-  compartment_id = oci_identity_compartment.second-root-compartment.id
-  vcn_id = module.main-vcn.vcn_id
+  compartment_id = oci_identity_compartment.second_root_compartment.id
+  vcn_id = module.main_vcn.vcn_id
 
   # Optional
   display_name = "${var.vcn_name}-public-subnet-security-list"
@@ -214,34 +214,34 @@ resource "oci_core_security_list" "main-vcn-public-security-list"{
 }
 
 # Outputs for public security list
-output "public-security-list-name" {
-  value = oci_core_security_list.main-vcn-public-security-list.display_name
+output "public_security_list_name" {
+  value = oci_core_security_list.main_vcn_public_security_list.display_name
 }
-output "public-security-list-OCID" {
-  value = oci_core_security_list.main-vcn-public-security-list.id
+output "public_security_list_OCID" {
+  value = oci_core_security_list.main_vcn_public_security_list.id
 }
 
 
 # ====== Public Subnet ==========
 # Source from https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_subnet
-resource "oci_core_subnet" "main-vcn-public-subnet"{
+resource "oci_core_subnet" "main_vcn_public_subnet"{
 
   # Required
-  compartment_id = oci_identity_compartment.second-root-compartment.id
-  vcn_id = module.main-vcn.vcn_id
+  compartment_id = oci_identity_compartment.second_root_compartment.id
+  vcn_id = module.main_vcn.vcn_id
   cidr_block = "10.0.0.0/24"
  
   # Optional
-  route_table_id = module.main-vcn.ig_route_id
-  security_list_ids = [oci_core_security_list.main-vcn-public-security-list.id]
+  route_table_id = module.main_vcn.ig_route_id
+  security_list_ids = [oci_core_security_list.main_vcn_public_security_list.id]
   display_name = "${var.vcn_name}-public-subnet"
   
 }
 
 # Outputs for public subnet
-output "public-subnet-name" {
-  value = oci_core_subnet.main-vcn-public-subnet.display_name
+output "public_subnet_name" {
+  value = oci_core_subnet.main_vcn_public_subnet.display_name
 }
-output "public-subnet-OCID" {
-  value = oci_core_subnet.main-vcn-public-subnet.id
+output "public_subnet_OCID" {
+  value = oci_core_subnet.main_vcn_public_subnet.id
 }
