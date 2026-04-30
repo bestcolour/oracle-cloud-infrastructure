@@ -37,3 +37,31 @@ resource "oci_identity_compartment" "second_root_compartment" {
     name = "second_root_compartment"
     enable_delete = true
 }
+
+# ========= IP ADDRESSES ============
+resource "oci_core_public_ip" "main_reserved_public_ip" {
+    #Required
+    compartment_id = oci_identity_compartment.second_root_compartment.id
+    lifetime = "RESERVED" # "RESERVED"  # Or "EPHEMERAL"
+
+    #Optional
+    # defined_tags = {"Operations.CostCenter"= "42"}
+    display_name = "main-public-ip"
+    # freeform_tags = {"Department"= "Finance"}
+    # private_ip_id = oci_core_private_ip.test_private_ip.id
+    # public_ip_pool_id = oci_core_public_ip_pool.test_public_ip_pool.id
+}
+
+# resource "oci_core_public_ip" "main_ephemeral_public_ip" {
+#     #Required
+#     compartment_id = oci_identity_compartment.second_root_compartment.id
+#     lifetime = "EPHEMERAL"
+
+#     #Optional
+#     # defined_tags = {"Operations.CostCenter"= "42"}
+#     display_name = "main-ephemeral-public-ip"
+#     # freeform_tags = {"Department"= "Finance"}
+#     # private_ip_id = oci_core_private_ip.test_private_ip.id
+#     # public_ip_pool_id = oci_core_public_ip_pool.test_public_ip_pool.id
+# }
+
