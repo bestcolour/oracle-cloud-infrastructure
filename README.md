@@ -2,15 +2,13 @@
 This project will hold all the golden source code for setting up my own infrastructure
 
 ---
+---
+---
 
-## How to use
 
-To have terraform ready on your device, run the below code:
+# Setup & Instruction to Use
 
-```bash
-docker-compose run --rm terraform
-```
-
+## How to find values for terraform.tfvars
 Setup your variables by creating "terraform.tfvars" file and filling in the values found in the example below:
 
 ```hcl
@@ -70,6 +68,17 @@ The region is the physical location of your data center.
 
 ---
 
+
+## How to use terraform
+
+To have terraform ready on your device, run the below code:
+
+```bash
+docker-compose run --rm terraform
+```
+
+---
+
 ## Verify if Oracle Cloud Provider Works
 
 Once inside:
@@ -79,7 +88,21 @@ terraform init
 terraform plan
 ```
 
-You should see regions being listed in the console. If you see it, it means that your oracle cloud is properly connected to terraform.
+You should see regions and other outputs being listed in the console. If you see it, it means that your oracle cloud is properly connected to terraform.
 
-## How to use the module:
-See main.tf for an example
+---
+---
+---
+
+# Architecture Explanation
+
+## Architecture Diagram
+![](https://raw.githubusercontent.com/bestcolour/site/refs/heads/master/assets/image/IT_Automation-Oracle_Cloud/Current%20Architecture-Oracle%20Cloud%20Resources.drawio.png)
+
+[Read more](https://bestcolour.github.io/site/projects/IT-automation-info/#oracle-cloud-personal-architecture)
+
+## Main tf files to look at
+Here are the important files to look at for this infrastructure architecture:
+1) main.tf
+2) main-vcn.tf
+
