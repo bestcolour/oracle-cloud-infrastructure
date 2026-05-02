@@ -1,3 +1,6 @@
+# This is the tf file that will provision the KMS oracle cloud resources (with the exclusion of kms secrets)
+# this will need to be provisoned first before provisioning the rest of the cloud architecture's resources as it is the underlying security that it will make use of.
+# 
 
 # ==== Vault ======
 variable "main_kms_vault_display_name" {

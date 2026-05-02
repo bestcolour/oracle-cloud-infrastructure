@@ -7,6 +7,29 @@ This project will hold all the golden source code for setting up my own infrastr
 
 
 # Setup & Instruction to Use
+---
+
+
+## How to use terraform
+
+To start terraform in a container on your device, run the below code:
+
+```bash
+docker-compose run --rm terraform
+```
+
+
+---
+
+## Folder explanation
+
+There are 2 folders in this repository, namely 00-bootstrap and 01-workloads. Both of them are integral to the provisioning for the oracle cloud architecture.
+
+00-bootstrap: Run the tf files in this folder first. Run terraform apply here once. Keep the resulting terraform.tfstate file safe (e.g., in a secure password manager or a private Git repo with restricted access), as this manages your management layer.
+
+01-workloads: This is where the main oracle cloud architecture resources will be provisioned. Run the tf files here only after finished 00-bootstrap's run.
+
+---
 
 ## How to find values for terraform.tfvars
 Setup your terraform variables by creating "terraform.tfvars" file and filling in the values found in the example below:
@@ -22,6 +45,8 @@ private_key_path = #TO DO, SET THIS PATH TO THE VOLUME MOUNTED PATH WITHIN DOCKE
 
 # Infrastructure Region
 region           = "us-ashburn-1"
+
+# =============== STOP HERE IF YOU ARE WRITING TFVARS FILE FOR BOOTSTRAP DIRECTORY ============
 
 vcn_name = "vcn-1"
 vcn_dns_label = "ohnoooo"
@@ -70,16 +95,6 @@ The region is the physical location of your data center.
     * Common identifiers: `us-ashburn-1`, `uk-london-1`, `eu-frankfurt-1`.
     * You can see the full list by clicking the region name and selecting **Manage Regions**.
 
----
-
-
-## How to use terraform
-
-To have terraform ready on your device, run the below code:
-
-```bash
-docker-compose run --rm terraform
-```
 
 ---
 
