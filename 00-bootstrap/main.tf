@@ -51,3 +51,16 @@ resource "oci_identity_compartment" "bootstrap_compartment" {
     name = var.bootstrap_compartment_name
     enable_delete = true
 }
+
+
+
+# # ==== Key Policy =====
+# resource "oci_identity_policy" "objectstorage_kms_policy" {
+#   name           = "ObjectStorageKMSAccess"
+#   description    = "Allow Object Storage service to use KMS keys for encryption"
+#   compartment_id = oci_identity_compartment.bootstrap_compartment.id 
+
+#   statements = [
+#     "Allow service objectstorage-${var.region} to use keys in compartment id ${oci_identity_compartment.bootstrap_compartment.id } where target.key.id = '${oci_kms_key.main_kms_key.id}'"
+#   ]
+# }

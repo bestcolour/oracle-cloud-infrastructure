@@ -29,17 +29,16 @@ provider "oci" {
 }
 
 
-# # ===== Backend =====
-# # this is used for syncing the terraform tf state file with oracle cloud's object storage
-# # This ensures the terraform state file is centralized and protected by OCI's security layers.
-# terraform {
-#   backend "oci" {
-#     bucket    = "terraform-state-bucket"
-#     namespace = "your-tenancy-namespace"
-#     region    = var.region
-#     key       = "network/terraform.tfstate"
-#   }
-# }
+# ===== Backend =====
+# this is used for syncing the terraform tf state file with oracle cloud's object storage
+# This ensures the terraform state file is centralized and protected by OCI's security layers.
+# this is left blank on purpose to allow another .tfvars file called "backend-config.tfvars" to fill up the details
+# to init with this file, use:
+# terraform init -backend-config="backend-config.tfvars"
+terraform {
+  backend "oci" {
+  }
+}
 
 
 

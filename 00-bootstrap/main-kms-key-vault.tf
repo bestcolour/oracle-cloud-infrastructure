@@ -9,7 +9,7 @@ variable "main_kms_vault_display_name" {
 }
 variable "main_kms_vault_type" {
     type = string
-    description = "The vault type that you want to provision. Value is VIRTUAL or VIRTUAL_PRIVATE. The 1st one is free forever."
+    description = "The vault type that you want to provision. Value is DEFAULT or VIRTUAL_PRIVATE or EXTERNAL. The DEFAULT is free forever."
 }
 
 # Provision a kms vault
@@ -39,53 +39,16 @@ variable "key_key_shape_length" {
   description = "The length of the key in bytes."
 }
 
-variable "key_is_auto_rotation_enabled" {
-  type        = bool
-  description = "Whether or not auto-rotation is enabled for this key."
-  default     = false
-}
-
-variable "key_auto_key_rotation_details_rotation_interval_in_days" {
-  type        = number
-  description = "The interval of key rotation in days."
-  default     = 90
-}
-
-variable "key_auto_key_rotation_details_time_of_schedule_start" {
-  type        = string
-  description = "The time the rotation schedule starts in RFC3339 format. Eg 2024-12-31T00:00:00Z"
-  default     = null
-}
-
-# We are not using this cause its not necessary
-# variable "key_auto_key_rotation_details_last_rotation_message" {
-#   type        = string
-#   description = "The message of the last rotation."
-#   default     = null
-# }
-
-# variable "key_auto_key_rotation_details_last_rotation_status" {
-#   type        = string
-#   description = "The status of the last rotation."
-#   default     = null
-# }
-
-# variable "key_auto_key_rotation_details_time_of_last_rotation" {
-#   type        = string
-#   description = "The time of the last rotation in RFC3339 format."
-#   default     = null
-# }
-
-# variable "key_auto_key_rotation_details_time_of_next_rotation" {
-#   type        = string
-#   description = "The time of the next rotation in RFC3339 format."
-#   default     = null
-# }
-
 variable "key_protection_mode" {
   type        = string
   description = "The protection mode of the key (HSM or SOFTWARE)."
-  default     = "HSM"
+  default     = "SOFTWARE"
+}
+
+variable "key_desired_state" {
+  type        = string
+  description = "The state you want the key to be in. Valid: ENABLED, DISABLED. Set this to DISABLED before you try to terraform destroy it."
+  default     = "ENABLED"
 }
 
 # Provision a kms key that uses the vault
@@ -107,29 +70,72 @@ resource "oci_kms_key" "main_kms_key" {
     management_endpoint = oci_kms_vault.main_kms_vault.management_endpoint
 
     #Optional
-    auto_key_rotation_details {
-
-        #Optional
-        rotation_interval_in_days = var.key_auto_key_rotation_details_rotation_interval_in_days
-        time_of_schedule_start = var.key_auto_key_rotation_details_time_of_schedule_start
-
-        # These are updatable output messages (not really necessary to use them)
-        # last_rotation_message = var.key_auto_key_rotation_details_last_rotation_message
-        # last_rotation_status = var.key_auto_key_rotation_details_last_rotation_status
-        # time_of_last_rotation = var.key_auto_key_rotation_details_time_of_last_rotation
-        # time_of_next_rotation = var.key_auto_key_rotation_details_time_of_next_rotation
-    }
+    # freeform_tags = {"Department"= "Finance"}
     # defined_tags = {"Operations.CostCenter"= "42"}
+    desired_state = var.key_desired_state # set this to DISABLED and apply the tf change before you try to tf destroy
+    protection_mode = var.key_protection_mode
+
+    # not using auto key rotation as main_kms_vault_type = DEFAULT (aka VIRTUAL mode) does not support this
+    # we will use a workaround with another terraform resource to rotate the key down below
+    is_auto_rotation_enabled = false
+    # auto_key_rotation_details {
+
+    #     #Optional
+    #     rotation_interval_in_days = var.key_auto_key_rotation_details_rotation_interval_in_days
+    #     time_of_schedule_start = var.key_auto_key_rotation_details_time_of_schedule_start
+
+    #     # These are updatable output messages (not really necessary to use them)
+    #     # last_rotation_message = var.key_auto_key_rotation_details_last_rotation_message
+    #     # last_rotation_status = var.key_auto_key_rotation_details_last_rotation_status
+    #     # time_of_last_rotation = var.key_auto_key_rotation_details_time_of_last_rotation
+    #     # time_of_next_rotation = var.key_auto_key_rotation_details_time_of_next_rotation
+    # }
 
     # Not using external key reference as it is a paid feature
     # external_key_reference { 
     #     #Required
     #     external_key_id = oci_kms_key.main_kms_key.id
     # }
-    # freeform_tags = {"Department"= "Finance"}
 
-    is_auto_rotation_enabled = var.key_is_auto_rotation_enabled
-    protection_mode = var.key_protection_mode
+
+
 
     depends_on = [ oci_kms_vault.main_kms_vault ]
+}
+
+
+# --- Key Rotation Logic ----
+variable "key_auto_key_rotation_details_rotation_interval_in_days" {
+  type        = number
+  description = "The interval of key rotation in days."
+  default     = 90
+}
+
+# 1. The Timer
+resource "time_rotating" "wait_rotation_days" {
+  rotation_days = var.key_auto_key_rotation_details_rotation_interval_in_days
+}
+
+# 2. The Trigger Logic
+resource "terraform_data" "rotation_trigger" {
+  input = time_rotating.wait_rotation_days.id
+}
+
+resource "oci_kms_key_version" "rotated_version" {
+  key_id              = oci_kms_key.main_kms_key.id
+  management_endpoint = oci_kms_vault.main_kms_vault.management_endpoint
+
+  # Remove time_of_deletion unless you specifically want this version 
+  # to disappear from the vault entirely after a certain date.
+  # If you want to keep old versions for decryption, leave it out.
+
+  lifecycle {
+    # 1. Create the new version first
+    create_before_destroy = true
+
+    # 2. Trigger the replacement based on your timer
+    replace_triggered_by = [
+      terraform_data.rotation_trigger
+    ]
+  }
 }
