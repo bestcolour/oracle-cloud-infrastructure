@@ -15,7 +15,7 @@ variable "main_kms_vault_type" {
 # Provision a kms vault
 resource "oci_kms_vault" "main_kms_vault" {
     #Required
-	compartment_id = oci_identity_compartment.second_root_compartment.id
+	compartment_id = oci_identity_compartment.bootstrap_compartment.id
 	display_name = var.main_kms_vault_display_name
 	vault_type = var.main_kms_vault_type
 }
@@ -54,7 +54,7 @@ variable "key_desired_state" {
 # Provision a kms key that uses the vault
 resource "oci_kms_key" "main_kms_key" {
     #Required
-    compartment_id = oci_identity_compartment.second_root_compartment.id
+    compartment_id = oci_identity_compartment.bootstrap_compartment.id
     display_name = var.main_kms_key_display_name
     key_shape {
         #Required
@@ -100,7 +100,7 @@ resource "oci_kms_key" "main_kms_key" {
 
 
 
-    depends_on = [ oci_kms_vault.main_kms_vault ]
+    # depends_on = [ oci_kms_vault.main_kms_vault, oci_identity_policy.objectstorage_kms_policy ]
 }
 
 
@@ -138,4 +138,7 @@ resource "oci_kms_key_version" "rotated_version" {
       terraform_data.rotation_trigger
     ]
   }
+
+  # depends_on = [oci_kms_vault.main_kms_vault, oci_kms_key.main_kms_key ]
+
 }

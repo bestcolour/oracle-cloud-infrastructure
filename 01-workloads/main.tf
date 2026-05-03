@@ -37,6 +37,7 @@ provider "oci" {
 # terraform init -backend-config="backend-config.tfvars"
 terraform {
   backend "oci" {
+
   }
 }
 
@@ -44,33 +45,39 @@ terraform {
 
 
 # # ===== Compartments  =====
-# # define all the resources here
-# resource "oci_identity_compartment" "data_arch_compartment" {
-#     # Required
-#     compartment_id = oci_identity_compartment.second_root_compartment
-#     description = "This compartment holds the cloud resources that are provisioned for the main cloud architecture"
-#     name = "data-arch-compartment"
-#     enable_delete = true
-# }
+variable "second_root_compartment_ocid" {
+  type = string 
+  description = "The ocid of the sub-compartment of the root compartment."
+}
 
-# # ========= IP ADDRESSES ============
-# # https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_public_ip#lifetime-7
-# resource "oci_core_public_ip" "main_reserved_public_ip" {
-#     #Required
-#     compartment_id = oci_identity_compartment.second_root_compartment.id
-#     lifetime = "RESERVED" # "RESERVED"  # Or "EPHEMERAL"
 
-#     #Optional
-#     # defined_tags = {"Operations.CostCenter"= "42"}
-#     display_name = "main-public-ip"
-#     # freeform_tags = {"Department"= "Finance"}
-#     # private_ip_id = oci_core_private_ip.test_private_ip.id
-#     # public_ip_pool_id = oci_core_public_ip_pool.test_public_ip_pool.id
-# }
+# define all the resources here
+resource "oci_identity_compartment" "data_arch_compartment" {
+    # Required
+    compartment_id = var.second_root_compartment_ocid
+    description = "This compartment holds the cloud resources that are provisioned for the main cloud architecture"
+    name = "data-arch-compartment"
+    enable_delete = true
+}
+
+# ========= IP ADDRESSES ============
+# https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_public_ip#lifetime-7
+resource "oci_core_public_ip" "main_reserved_public_ip" {
+    #Required
+    compartment_id = oci_identity_compartment.data_arch_compartment.id
+    lifetime = "RESERVED" # "RESERVED"  # Or "EPHEMERAL"
+
+    #Optional
+    # defined_tags = {"Operations.CostCenter"= "42"}
+    display_name = "main-public-ip"
+    # freeform_tags = {"Department"= "Finance"}
+    # private_ip_id = oci_core_private_ip.test_private_ip.id
+    # public_ip_pool_id = oci_core_public_ip_pool.test_public_ip_pool.id
+}
 
 # resource "oci_core_public_ip" "main_ephemeral_public_ip" {
 #     #Required
-#     compartment_id = oci_identity_compartment.second_root_compartment.id
+#     compartment_id = oci_identity_compartment.data_arch_compartment.id
 #     lifetime = "EPHEMERAL"
 
 #     #Optional

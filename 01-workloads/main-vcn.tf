@@ -24,7 +24,7 @@ module "main_vcn" {
   version = "3.6.0"
 
   # Required Inputs
-  compartment_id = oci_identity_compartment.second_root_compartment.id
+  compartment_id = oci_identity_compartment.data_arch_compartment.id
 
   # Optional Inputs 
   region = var.region
@@ -39,7 +39,7 @@ module "main_vcn" {
   vcn_dns_label = var.vcn_dns_label
   vcn_cidrs = var.vcn_cidr_blocks
 
-  depends_on = [ oci_identity_compartment.second_root_compartment ]
+  depends_on = [ oci_identity_compartment.data_arch_compartment]
 }
 
 # ---- Output -----
@@ -59,7 +59,7 @@ output "id_for_route_table_that_includes_the_internet_gateway" {
 resource "oci_core_security_list" "main_vcn_private_security_list"{
 
   # Required
-  compartment_id = oci_identity_compartment.second_root_compartment.id
+  compartment_id = oci_identity_compartment.data_arch_compartment.id
   vcn_id = module.main_vcn.vcn_id
 
   # Optional
@@ -112,6 +112,8 @@ resource "oci_core_security_list" "main_vcn_private_security_list"{
         type = 3
       } 
     }
+
+    depends_on = [ oci_identity_compartment.data_arch_compartment ]
 }
 
 
@@ -131,7 +133,7 @@ output "private_security_list_OCID" {
 resource "oci_core_subnet" "main_vcn_private_subnet"{
 
   # Required
-  compartment_id = oci_identity_compartment.second_root_compartment.id
+  compartment_id = oci_identity_compartment.data_arch_compartment.id
   vcn_id = module.main_vcn.vcn_id
   cidr_block = "10.0.1.0/24"
  
@@ -141,6 +143,8 @@ resource "oci_core_subnet" "main_vcn_private_subnet"{
   route_table_id = module.main_vcn.nat_route_id
   security_list_ids = [oci_core_security_list.main_vcn_private_security_list.id]
   display_name = "${var.vcn_name}-private-subnet"
+
+  depends_on = [ oci_identity_compartment.data_arch_compartment ]
 }
 
 
@@ -158,7 +162,7 @@ output "private-subnet-OCID" {
 resource "oci_core_security_list" "main_vcn_public_security_list"{
 
   # Required
-  compartment_id = oci_identity_compartment.second_root_compartment.id
+  compartment_id = oci_identity_compartment.data_arch_compartment.id
   vcn_id = module.main_vcn.vcn_id
 
   # Optional
@@ -211,6 +215,8 @@ resource "oci_core_security_list" "main_vcn_public_security_list"{
         type = 3
       } 
     }
+
+    depends_on = [ oci_identity_compartment.data_arch_compartment ]
 }
 
 # Outputs for public security list
@@ -227,7 +233,7 @@ output "public_security_list_OCID" {
 resource "oci_core_subnet" "main_vcn_public_subnet"{
 
   # Required
-  compartment_id = oci_identity_compartment.second_root_compartment.id
+  compartment_id = oci_identity_compartment.data_arch_compartment.id
   vcn_id = module.main_vcn.vcn_id
   cidr_block = "10.0.0.0/24"
  
@@ -236,6 +242,7 @@ resource "oci_core_subnet" "main_vcn_public_subnet"{
   security_list_ids = [oci_core_security_list.main_vcn_public_security_list.id]
   display_name = "${var.vcn_name}-public-subnet"
   
+  depends_on = [ oci_identity_compartment.data_arch_compartment ]
 }
 
 # Outputs for public subnet
