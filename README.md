@@ -6,6 +6,17 @@ This project will hold all the golden source code for setting up my own infrastr
 ---
 
 
+# Architecture Explanation
+
+## Architecture Diagram
+![](https://raw.githubusercontent.com/bestcolour/site/refs/heads/master/assets/image/IT_Automation-Oracle_Cloud/Current%20Architecture-Oracle%20Cloud%20Resources.drawio.png)
+
+[Read more](https://bestcolour.github.io/site/projects/IT-automation-info/#oracle-cloud-personal-architecture)
+
+---
+---
+---
+
 # Setup & Instruction to Use
 ---
 
@@ -31,10 +42,12 @@ There are 2 folders in this repository, namely 00-bootstrap and 01-workloads. Bo
 
 ---
 
-## How to find values for terraform.tfvars
-Setup your terraform variables by creating "terraform.tfvars" file and filling in the values found in the example below:
 
-```hcl
+## tfvars example config file - oci provider tfvars
+
+First set of credentials to find are the credentials to setup the oci provider. The oci provider code can be found in multiple tf files hence this set of credentials is repeated in multiple places.
+
+```
 # Tenancy and User Information
 tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaaxexample"
 user_ocid        = "ocid1.user.oc1..aaaaaaaayexample"
@@ -45,12 +58,6 @@ private_key_path = #TO DO, SET THIS PATH TO THE VOLUME MOUNTED PATH WITHIN DOCKE
 
 # Infrastructure Region
 region           = "us-ashburn-1"
-
-# =============== STOP HERE IF YOU ARE WRITING TFVARS FILE FOR BOOTSTRAP DIRECTORY ============
-
-vcn_name = "vcn-1"
-vcn_dns_label = "ohnoooo"
-vcn_cidr_blocks = ["10.0.0.0/16"]
 ```
 
 To find these identifiers in the Oracle Cloud Infrastructure (OCI) console, you can think of it in two main stops: your **Tenancy** details and your **User** details.
@@ -95,6 +102,77 @@ The region is the physical location of your data center.
     * Common identifiers: `us-ashburn-1`, `uk-london-1`, `eu-frankfurt-1`.
     * You can see the full list by clicking the region name and selecting **Manage Regions**.
 
+---
+---
+---
+
+## tfvars example config file - 00-bootstrap
+```
+# Tenancy and User Information
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaaxexample"
+user_ocid        = "ocid1.user.oc1..aaaaaaaayexample"
+
+# Authentication
+fingerprint      = "20:3b:97:13:55:1c:..."
+private_key_path = #TO DO, SET THIS PATH TO THE VOLUME MOUNTED PATH WITHIN DOCKER COMPOSE eg. "/workspace/.oci/oci_api_key.pem"
+
+# Infrastructure Region
+region           = "us-ashburn-1"
+
+# Compartments
+second_root_compartment_name = "my-second-root"
+bootstrap_compartment_name= "my-bootstrap-compartment"
+
+# === Bucket For Syncing Terraform State ====
+tf_state_bucket_name = "my-bucket"
+tf_state_bucket_access_type = "NoPublicAccess"
+tf_state_bucket_auto_tiering = "Disabled"
+tf_state_bucket_object_events_enabled=false
+tf_state_bucket_storage_tier = "Standard"
+tf_state_bucket_versioning = "Enabled"
+tf_state_bucket_lifecycle_time_amount = "30"
+tf_state_bucket_lifecycle_time_unit = "DAYS"
+
+# === Vault & Key ===
+# Vault
+main_kms_vault_display_name = "the-main-kms-vault"
+main_kms_vault_type = "DEFAULT"
+
+# Key
+main_kms_key_display_name = "main-kms-key"
+key_key_shape_algorithm = "AES"
+key_protection_mode = "SOFTWARE"
+key_key_shape_length = 32
+key_auto_key_rotation_details_rotation_interval_in_days = 90
+key_desired_state = "ENABLED"
+```
+
+---
+---
+---
+
+## tfvars example config file - 01-workloads
+
+Setup your terraform variables by creating "terraform.tfvars" file and filling in the values found in the example below:
+
+```hcl
+# Tenancy and User Information
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaaxexample"
+user_ocid        = "ocid1.user.oc1..aaaaaaaayexample"
+
+# Authentication
+fingerprint      = "20:3b:97:13:55:1c:..."
+private_key_path = #TO DO, SET THIS PATH TO THE VOLUME MOUNTED PATH WITHIN DOCKER COMPOSE eg. "/workspace/.oci/oci_api_key.pem"
+
+# Infrastructure Region
+region           = "us-ashburn-1"
+
+# =============== STOP HERE IF YOU ARE WRITING TFVARS FILE FOR BOOTSTRAP DIRECTORY ============
+
+vcn_name = "vcn-1"
+vcn_dns_label = "ohnoooo"
+vcn_cidr_blocks = ["10.0.0.0/16"]
+```
 
 ---
 
@@ -112,16 +190,3 @@ You should see regions and other outputs being listed in the console. If you see
 ---
 ---
 ---
-
-# Architecture Explanation
-
-## Architecture Diagram
-![](https://raw.githubusercontent.com/bestcolour/site/refs/heads/master/assets/image/IT_Automation-Oracle_Cloud/Current%20Architecture-Oracle%20Cloud%20Resources.drawio.png)
-
-[Read more](https://bestcolour.github.io/site/projects/IT-automation-info/#oracle-cloud-personal-architecture)
-
-## Main tf files to look at
-Here are the important files to look at for this infrastructure architecture:
-1) main.tf
-2) main-vcn.tf
-
