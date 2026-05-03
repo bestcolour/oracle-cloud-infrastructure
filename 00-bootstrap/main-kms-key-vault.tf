@@ -52,6 +52,7 @@ variable "key_desired_state" {
 }
 
 # Provision a kms key that uses the vault
+# TRYING TO TERRAFORM DESTROY THIS KEY REQUIRES YOU TO LOG INTO THE ORACLE CLOUD WEBPAGE TO DELETE 
 resource "oci_kms_key" "main_kms_key" {
     #Required
     compartment_id = oci_identity_compartment.bootstrap_compartment.id
