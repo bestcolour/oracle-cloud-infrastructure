@@ -272,6 +272,21 @@ terraform plan
 
 You should see regions and other outputs being listed in the console. If you see it, it means that your oracle cloud is properly connected to terraform.
 
+
+## Retrieving ssh key to the compute instance
+```
+# Retrieve, decode, and save the key to a temporary file
+oci secrets get-secret-bundle-by-name \
+  --secret-name "compute_ssh_private_key" \
+  --query "data.\"secret-bundle-content\".content" \
+  --raw-output | base64 -d > private_key.pem
+
+# Set permissions and connect
+chmod 400 private_key.pem
+ssh -i private_key.pem opc@<INSTANCE_PUBLIC_IP>
+```
+
+
 ---
 ---
 ---

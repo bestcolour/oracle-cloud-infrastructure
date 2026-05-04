@@ -44,12 +44,12 @@ terraform {
 
 
 
-# # ===== Compartments  =====
+
+# ===== Compartments  =====
 variable "second_root_compartment_ocid" {
   type = string 
   description = "The ocid of the sub-compartment of the root compartment."
 }
-
 
 # define all the resources here
 resource "oci_identity_compartment" "data_arch_compartment" {
