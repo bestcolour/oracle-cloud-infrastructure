@@ -37,6 +37,15 @@ variable "reverse_proxy_vm_source_id" {
   type = string 
   description = "The image id of the os image you want your vm instance to use. Find your this value here https://docs.oracle.com/en-us/iaas/images/ > choose the image you want to use > copy the link based on your region"
 }
+variable "reverse_proxy_vm_assign_public_ip" {
+  type = bool 
+  description = "Whether the VNIC should be assigned a public IP address. Defaults to whether the subnet is public or private. If not set and the VNIC is being created in a private subnet (that is, where prohibitPublicIpOnVnic = true in the Subnet), then no public IP address is assigned. If not set and the subnet is public (prohibitPublicIpOnVnic = false), then a public IP address is assigned. If set to true and prohibitPublicIpOnVnic = true, an error is returned"
+}
+variable "reverse_proxy_vm_hostname_label" {
+  type = string 
+  description = "The hostname for the VNIC's primary private IP. Used for DNS. The value is the hostname portion of the primary private IP's fully qualified domain name (FQDN) (for example, bminstance1 in FQDN bminstance1.subnet123.vcn1.oraclevcn.com). Must be unique across all VNICs in the subnet and comply with RFC 952 and RFC 1123. The value appears in the Vnic object and also the PrivateIp object returned by ListPrivateIps and GetPrivateIp."
+}
+
 
 
 # --- Resources ---
@@ -60,32 +69,60 @@ resource "oci_vault_secret" "reverse_proxy_vm_ssh_key_secret" {
   depends_on = [ tls_private_key.reverse_proxy_vm_ssh_key ]
 }
 
-# 5. Provision the Compute Instance
 resource "oci_core_instance" "reverse_proxy_vm" {
-  availability_domain = var.region
-  compartment_id      = oci_identity_compartment.data_arch_compartment.id
-  display_name        = var.reverse_proxy_vm_name
-  shape               = var.free_forever_compute_shape
+    #Required
+    availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+    compartment_id      = oci_identity_compartment.data_arch_compartment.id
+    display_name        = var.reverse_proxy_vm_name
+    shape               = var.free_forever_compute_shape
 
-  shape_config {
-    memory_in_gbs = var.reverse_proxy_vm_memory
-    ocpus         = var.reverse_proxy_vm_ocpus
-  }
+    create_vnic_details {
 
-  create_vnic_details {
-    subnet_id        = oci_core_subnet.main_vcn_public_subnet.id
-    assign_public_ip = true
-  }
+        #Optional
+        # assign_ipv6ip = var.instance_create_vnic_details_assign_ipv6ip
+        # assign_private_dns_record = var.instance_create_vnic_details_assign_private_dns_record
+        assign_public_ip = var.reverse_proxy_vm_assign_public_ip
+        # defined_tags = {"Operations.CostCenter"= "42"}
+        # display_name = var.instance_create_vnic_details_display_name
+        # freeform_tags = {"Department"= "Finance"}
+        hostname_label = var.reverse_proxy_vm_hostname_label
 
-  source_details {
-    source_type = "image"
-    source_id   = var.reverse_proxy_vm_source_id # e.g., Oracle Linux 8
-  }
+        # security_attributes = var.reverse_proxy_vm_security_attributes # not using since this is outside of free forever tier
 
-  metadata = {
-    # We pass the PUBLIC key generated in Step 1 to the instance
-    ssh_authorized_keys = tls_private_key.reverse_proxy_vm_ssh_key.public_key_openssh
-  }
+        subnet_id = oci_core_subnet.main_vcn_public_subnet.id
+    }
+
+
+    # security_attributes = var.reverse_proxy_vm_security_attributes # not using since this is outside of free forever tier
+    # shape = var.instance_shape
+    shape_config {
+      memory_in_gbs = var.reverse_proxy_vm_memory
+      ocpus         = var.reverse_proxy_vm_ocpus
+    }
+    source_details {
+        #Required
+        source_id = var.reverse_proxy_vm_source_id
+        source_type = "image"
+
+        # #Optional
+        # boot_volume_size_in_gbs = var.instance_source_details_boot_volume_size_in_gbs
+        # boot_volume_vpus_per_gb = var.instance_source_details_boot_volume_vpus_per_gb
+        # instance_source_image_filter_details {
+        #     #Required
+        #     compartment_id = var.compartment_id
+
+        #     #Optional
+        #     defined_tags_filter = var.instance_source_details_instance_source_image_filter_details_defined_tags_filter
+        #     operating_system = var.instance_source_details_instance_source_image_filter_details_operating_system
+        #     operating_system_version = var.instance_source_details_instance_source_image_filter_details_operating_system_version
+        # }
+        # kms_key_id = oci_kms_key.test_key.id
+    }
+    metadata = {
+      ssh_authorized_keys = tls_private_key.reverse_proxy_vm_ssh_key.public_key_openssh
+    }
+    preserve_boot_volume = false
+      
 
   depends_on = [ tls_private_key.reverse_proxy_vm_ssh_key ]
 }

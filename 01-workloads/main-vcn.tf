@@ -129,6 +129,9 @@ output "private_security_list_OCID" {
 
 # ====== Private Subnet ==============
 # Source from https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_subnet
+variable "main_vcn_private_subnet_dns_label" {
+  type = string
+}
 
 resource "oci_core_subnet" "main_vcn_private_subnet"{
 
@@ -136,7 +139,7 @@ resource "oci_core_subnet" "main_vcn_private_subnet"{
   compartment_id = oci_identity_compartment.data_arch_compartment.id
   vcn_id = module.main_vcn.vcn_id
   cidr_block = "10.0.1.0/24"
- 
+  dns_label = var.main_vcn_private_subnet_dns_label
   # Optional
   # Caution: For the route table id, use module.vcn.nat_route_id.
   # Do not use module.vcn.nat_gateway_id, because it is the OCID for the gateway and not the route table.
@@ -229,6 +232,10 @@ output "public_security_list_OCID" {
 
 
 # ====== Public Subnet ==========
+variable "main_vcn_public_subnet_dns_label" {
+  type = string
+}
+
 # Source from https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_subnet
 resource "oci_core_subnet" "main_vcn_public_subnet"{
 
@@ -236,6 +243,7 @@ resource "oci_core_subnet" "main_vcn_public_subnet"{
   compartment_id = oci_identity_compartment.data_arch_compartment.id
   vcn_id = module.main_vcn.vcn_id
   cidr_block = "10.0.0.0/24"
+  dns_label = var.main_vcn_public_subnet_dns_label
  
   # Optional
   route_table_id = module.main_vcn.ig_route_id
