@@ -127,9 +127,23 @@ resource "oci_core_instance" "reverse_proxy_vm" {
   depends_on = [ tls_private_key.reverse_proxy_vm_ssh_key ]
 }
 
+
+
+# IP Address Provisioning and Allocation
 variable "reverse_proxy_vm_ip_display_name" {
   type = string 
   description = "The display name for the ip address provisioned for the reverse proxy vm"
+}
+
+# 1. Get the VNIC ID from your existing instance
+data "oci_core_vnic_attachments" "reverse_proxy_vm_vnics" {
+  compartment_id = oci_identity_compartment.data_arch_compartment.id
+  instance_id    = oci_core_instance.reverse_proxy_vm.id
+}
+
+# 2. Get the specific Private IP details
+data "oci_core_private_ips" "reverse_proxy_vm_primary_ip_search" {
+  vnic_id = data.oci_core_vnic_attachments.reverse_proxy_vm_vnics.vnic_attachments[0].vnic_id
 }
 
 # https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_public_ip#lifetime-7
@@ -142,7 +156,7 @@ resource "oci_core_public_ip" "main_reserved_public_ip" {
     #Optional
     # defined_tags = {"Operations.CostCenter"= "42"}
     display_name = var.reverse_proxy_vm_ip_display_name
-    private_ip_id = oci_core_instance.reverse_proxy_vm.private_ip
+    private_ip_id = data.oci_core_private_ips.reverse_proxy_vm_primary_ip_search.private_ips[0].id
     # freeform_tags = {"Department"= "Finance"}
     # public_ip_pool_id = oci_core_public_ip_pool.test_public_ip_pool.id
     depends_on = [ oci_core_instance.reverse_proxy_vm ]
