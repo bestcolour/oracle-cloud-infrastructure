@@ -1,0 +1,34 @@
+# To setup, you need the following:
+# A .oci folder which contains:
+# 1) 'config' file that contains:
+# ```
+# [DEFAULT]
+# user=ocid1.user.oc1..
+# fingerprint=
+# tenancy=ocid1.tenancy.oc1..
+# region=
+# key_file=/oracle/.oci/oci_api_key.pem
+# ```
+# 2) A 'oci_api_key.pem' file that lets you access your oracle account using the cli
+
+# To run this container, run:
+# docker compose -f oci.yml run --rm oci-cli "<YOUR COMMAND>"
+
+# Here is how you can get secrets using this container
+# docker compose -f oci.yml run --rm oci-cli "oci secrets secret-bundle get-secret-bundle-by-name --secret-name '<YOUR_SECRET_NAME>' --vault-id <YOUR_VAULT_OCID> --query 'data.\"secret-bundle-content\".content' --raw-output | base64 -d > my_secret.pem"
+# Note: you can rename 'my_secret.pem' to whatever you want.
+
+services:
+  oci-cli:
+    image: ghcr.io/oracle/oci-cli:latest
+    container_name: oci-tool
+    volumes:
+      - .:/oracle
+    environment:
+      - OCI_CLI_CONFIG_FILE=/oracle/.oci/config
+    working_dir: /oracle
+    # We override the entrypoint to allow shell features like pipes
+    entrypoint: ["/bin/sh", "-c"]
+
+
+    
