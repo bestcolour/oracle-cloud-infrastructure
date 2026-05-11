@@ -62,20 +62,7 @@ resource "oci_identity_compartment" "data_arch_compartment" {
     enable_delete = true
 }
 
-# ========= IP ADDRESSES ============
-# https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_public_ip#lifetime-7
-resource "oci_core_public_ip" "main_reserved_public_ip" {
-    #Required
-    compartment_id = oci_identity_compartment.data_arch_compartment.id
-    lifetime = "RESERVED" # "RESERVED"  # Or "EPHEMERAL"
 
-    #Optional
-    # defined_tags = {"Operations.CostCenter"= "42"}
-    display_name = "main-public-ip"
-    # freeform_tags = {"Department"= "Finance"}
-    # private_ip_id = oci_core_private_ip.test_private_ip.id
-    # public_ip_pool_id = oci_core_public_ip_pool.test_public_ip_pool.id
-}
 
 # resource "oci_core_public_ip" "main_ephemeral_public_ip" {
 #     #Required

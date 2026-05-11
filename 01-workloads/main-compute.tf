@@ -126,3 +126,24 @@ resource "oci_core_instance" "reverse_proxy_vm" {
 
   depends_on = [ tls_private_key.reverse_proxy_vm_ssh_key ]
 }
+
+variable "reverse_proxy_vm_ip_display_name" {
+  type = string 
+  description = "The display name for the ip address provisioned for the reverse proxy vm"
+}
+
+# https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_public_ip#lifetime-7
+# This is the public ip that is reserved for the computing instance
+resource "oci_core_public_ip" "main_reserved_public_ip" {
+    #Required
+    compartment_id = oci_identity_compartment.data_arch_compartment.id
+    lifetime = "RESERVED" # "RESERVED"  # Or "EPHEMERAL"
+
+    #Optional
+    # defined_tags = {"Operations.CostCenter"= "42"}
+    display_name = var.reverse_proxy_vm_ip_display_name
+    private_ip_id = oci_core_instance.reverse_proxy_vm.private_ip
+    # freeform_tags = {"Department"= "Finance"}
+    # public_ip_pool_id = oci_core_public_ip_pool.test_public_ip_pool.id
+    depends_on = [ oci_core_instance.reverse_proxy_vm ]
+}
