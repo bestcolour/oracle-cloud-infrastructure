@@ -274,18 +274,23 @@ You should see regions and other outputs being listed in the console. If you see
 
 
 ## Retrieving ssh key to the compute instance
+To setup, you need the following:
+A .oci folder which contains:
+1) 'config' file that contains:
 ```
-# Retrieve, decode, and save the key to a temporary file
-oci secrets get-secret-bundle-by-name \
-  --secret-name "compute_ssh_private_key" \
-  --query "data.\"secret-bundle-content\".content" \
-  --raw-output | base64 -d > private_key.pem
-
-# Set permissions and connect
-chmod 400 private_key.pem
-ssh -i private_key.pem opc@<INSTANCE_PUBLIC_IP>
+[DEFAULT]
+user=ocid1.user.oc1..
+fingerprint=
+tenancy=ocid1.tenancy.oc1..
+region=
+key_file=/oracle/.oci/oci_api_key.pem
 ```
+2) A 'oci_api_key.pem' file that lets you access your oracle account using the cli (which you should already have if you have setup the terraform project above)
 
+We will use oci.yml to run an oci container and retrieve the ssh key. This will be the command we will be running:
+```
+docker compose -f oci.yml run --rm oci-cli "oci secrets secret-bundle get-secret-bundle-by-name --secret-name '<YOUR_SECRET_NAME>' --vault-id <YOUR_VAULT_OCID> --query 'data.\"secret-bundle-content\".content' --raw-output | base64 -d > my_secret.pem"
+```
 
 ---
 ---
