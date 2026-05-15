@@ -120,6 +120,7 @@ resource "oci_core_instance" "reverse_proxy_vm" {
     }
     metadata = {
       ssh_authorized_keys = tls_private_key.reverse_proxy_vm_ssh_key.public_key_openssh
+      user_data = filebase64("${path.module}/main-compute-setup-reverse-proxy.sh")
     }
     preserve_boot_volume = false
       
