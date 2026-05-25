@@ -295,3 +295,31 @@ docker compose -f oci.yml run --rm oci-cli "oci secrets secret-bundle get-secret
 ---
 ---
 ---
+
+
+# Common Troubleshooting Issues
+
+## Unable to lookup backend tf state Object Storage, server misbehaving 
+
+```
+│ Error: Failed to get existing workspaces: Get "redacted": dial tcp: lookup objectstorage.redacted.oraclecloud.com on 127.0.0.11:53: server misbehaving 
+```
+
+There are times where the backend Object Storage that is used to sync tf state across multiple devices using Terraform has a "misbehaving" eror. This is likely due to the Docker container not being properly stopped when the terminal running that container is closed.
+
+To cleanly close the container, we need to first find the Terraform container
+```
+docker ps -a
+```
+
+and stop it
+```
+docker stop <container_id>
+```
+
+Then, we just run:
+```
+docker compose down -v
+```
+
+After that, you can just re-init the Terrform backend
