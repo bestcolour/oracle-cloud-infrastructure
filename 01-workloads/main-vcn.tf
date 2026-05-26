@@ -162,6 +162,7 @@ output "private-subnet-OCID" {
 
 # ====== Public Subnet Security List ==========
 # Source from https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_security_list
+# Allows only ssh connections
 resource "oci_core_security_list" "main_vcn_public_security_list"{
 
   # Required

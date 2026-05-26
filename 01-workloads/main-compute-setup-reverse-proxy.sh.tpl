@@ -1,5 +1,6 @@
 #!/bin/bash
-
+set -e
+# https://youtu.be/9DnCIpbn-8o?si=cu65TpT1mV5oVdEO
 #######################################################################
 # ORACLE CLOUD UBUNTU INTEGRATED SECURITY & REVERSE PROXY SETUP SCRIPT
 # This script automates: Unattended Upgrades, Fail2Ban, Firewall,
@@ -8,24 +9,39 @@
 
 # --- VARIABLES ---
 # Security Configuration
-OPEN_TCP_PORTS="80 443"
+OPEN_TCP_PORTS="${your_tcp_ports}" # eg. 80 443
 AUTO_REBOOT="true"
 REBOOT_TIME="03:00"
 
+# --- Automate DuckDNS Update ---
+DUCKDNS_TOKEN="${your_duckdns_token}" # (Replace 'your-duckdns-token' and 'your-domain')
+DUCKDNS_DOMAIN="${your_duckdns_domainname}" # just the name, not the .duckdns.org part
+MAX_RETRIES=20
+
 # --- DOMAIN & BACKEND CONFIGURATION ---
 # Base domain (e.g., example.com)
-BASE_DOMAIN="yourdomain.com" 
+BASE_DOMAIN="${your_base_domain}" 
 
 # Headscale Configuration
 HEADSCALE_SUBDOMAIN="headscale.$BASE_DOMAIN"
-HEADSCALE_BACKEND="10.0.1.10:8080" # Update to your actual private Headscale IP and port
+HEADSCALE_BACKEND="${headscale_private_ip_n_port}" # Update to your actual private Headscale IP and port eg. "10.0.1.10:8080"
 
 # Side Project Configuration
 PROJECTS_SUBDOMAIN="projects.$BASE_DOMAIN"
-PROJECTS_BACKEND="10.0.1.11:8080"  # Update to your actual private side-project IP and port
+PROJECTS_BACKEND="${projects_private_ip_n_port}"  # Update to your actual private side-project IP and port
 
 # Prevent interactive prompts during apt installations
 export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a  # Tells needrestart to automatically restart services without asking
+# Force dpkg/apt to always use default options and never prompt
+echo 'force-confold' | sudo tee /etc/dpkg/dpkg.cfg.d/force-confold
+
+# --- 0. WAIT FOR AP-DAILY / DPKG LOCKS TO RELEASE ---
+echo "Waiting for background system upgrade processes to finish..."
+while fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock >/dev/null 2>&1 ; do
+    echo "Apt lock is held by another process. Waiting 5 seconds..."
+    sleep 5
+done
 
 # --- 1. SYSTEM UPDATE ---
 echo "Starting system update..."
@@ -33,7 +49,7 @@ sudo apt-get update -y && sudo apt-get upgrade -y
 
 # --- 2. INSTALL PACKAGES ---
 echo "Installing required packages (Security & Nginx)..."
-sudo apt-get install -y unattended-upgrades fail2ban iptables-persistent nginx
+sudo apt-get install -y unattended-upgrades fail2ban iptables-persistent nginx dnsutils curl
 
 # Ensure Nginx starts on boot and is currently running
 sudo systemctl enable nginx
@@ -137,10 +153,16 @@ fi
 
 echo "Detected Public IP of this instance: $PUBLIC_IP"
 
-# 3. DNS Waiter Loop: Ensure domains point here before attempting certificate generation
+
+
+echo "Updating DuckDNS..."
+curl -s "https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=$PUBLIC_IP"
+
+# 3. DNS Waiter Loop with a Max Timeout (e.g., 20 attempts = 5 minutes)
 for DOMAIN in "$HEADSCALE_SUBDOMAIN" "$PROJECTS_SUBDOMAIN"; do
     echo "Checking DNS resolution for $DOMAIN..."
-    while true; do
+    ATTEMPTS=0
+    while [ $ATTEMPTS -lt $MAX_RETRIES ]; do
         RESOLVED_IP=$(dig +short "$DOMAIN" | tail -n1)
         if [ "$RESOLVED_IP" = "$PUBLIC_IP" ]; then
             echo "Success: $DOMAIN correctly resolves to $PUBLIC_IP"
@@ -148,7 +170,13 @@ for DOMAIN in "$HEADSCALE_SUBDOMAIN" "$PROJECTS_SUBDOMAIN"; do
         fi
         echo "Waiting for DNS $DOMAIN -> $PUBLIC_IP (Currently: '$RESOLVED_IP'). Retrying in 15 seconds..."
         sleep 15
+        ATTEMPTS=$((ATTEMPTS + 1))
     done
+    
+    if [ $ATTEMPTS -eq $MAX_RETRIES ]; then
+        echo "ERROR: DNS failed to propagate after 5 minutes. Skipping Certbot setup to prevent infinite hang."
+        exit 1 # Or handle gracefully without exiting so the rest of the script finishes
+    fi
 done
 
 # 4. Request the SSL Certificates

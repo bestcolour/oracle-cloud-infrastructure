@@ -1,7 +1,7 @@
 # https://docs.oracle.com/en-us/iaas/Content/dev/terraform/tutorials/tf-compute.htm
 
 # ===== Reverse Proxy Instance =========
-# --- Variables ---
+# --- oci related Variables ---
 variable "kms_main_vault_ocid" {
   type = string 
   description = "The ocid of the main kms vault provisioned in the bootstrap terraform project."
@@ -46,7 +46,43 @@ variable "reverse_proxy_vm_hostname_label" {
   description = "The hostname for the VNIC's primary private IP. Used for DNS. The value is the hostname portion of the primary private IP's fully qualified domain name (FQDN) (for example, bminstance1 in FQDN bminstance1.subnet123.vcn1.oraclevcn.com). Must be unique across all VNICs in the subnet and comply with RFC 952 and RFC 1123. The value appears in the Vnic object and also the PrivateIp object returned by ListPrivateIps and GetPrivateIp."
 }
 
+# --- cloud-init script related Variables ---
+# NETWORK CONFIGURATION 
+variable "your_tcp_ports" {
+  type        = list(string)
+  description = "A list of TCP ports to open for the security configuration (e.g., ['80', '443'])."
+  default     = ["80", "443"]
+}
 
+#  DUCKDNS CONFIGURATION 
+
+variable "your_duckdns_token" {
+  type        = string
+  description = "The API token provided by DuckDNS for dynamic DNS updates."
+  sensitive   = true
+}
+
+variable "your_duckdns_domainname" {
+  type        = string
+  description = "The subdomain part of your DuckDNS configuration (just the name, excluding '.duckdns.org')."
+}
+
+#  DOMAIN & BACKEND CONFIGURATION 
+
+variable "your_base_domain" {
+  type        = string
+  description = "The top-level base domain name (e.g., 'example.com') used to derive subdomains."
+}
+
+variable "headscale_private_ip_n_port" {
+  type        = string
+  description = "The internal IP address and port for the Headscale backend (e.g., '10.0.1.10:8080')."
+}
+
+variable "projects_private_ip_n_port" {
+  type        = string
+  description = "The internal IP address and port for the side-projects backend (e.g., '10.0.1.20:8080')."
+}
 
 # --- Resources ---
 # 1. Generate the SSH Key Pair in memory
@@ -86,7 +122,7 @@ resource "oci_core_instance" "reverse_proxy_vm" {
         # display_name = var.instance_create_vnic_details_display_name
         # freeform_tags = {"Department"= "Finance"}
         hostname_label = var.reverse_proxy_vm_hostname_label
-
+        nsg_ids = [oci_core_network_security_group.reverse_proxy_network_security_group.id]
         # security_attributes = var.reverse_proxy_vm_security_attributes # not using since this is outside of free forever tier
 
         subnet_id = oci_core_subnet.main_vcn_public_subnet.id
@@ -120,16 +156,27 @@ resource "oci_core_instance" "reverse_proxy_vm" {
     }
     metadata = {
       ssh_authorized_keys = tls_private_key.reverse_proxy_vm_ssh_key.public_key_openssh
-      user_data = filebase64("${path.module}/main-compute-setup-reverse-proxy.sh")
+      user_data = base64encode(
+        templatefile("${path.module}/main-compute-setup-reverse-proxy.sh.tpl",
+        {
+          your_tcp_ports = join(" ", var.your_tcp_ports)
+          your_duckdns_token= var.your_duckdns_token
+          your_duckdns_domainname= var.your_duckdns_domainname
+          your_base_domain= var.your_base_domain
+          headscale_private_ip_n_port= var.headscale_private_ip_n_port
+          projects_private_ip_n_port= var.projects_private_ip_n_port        
+        }
+        )
+      )
     }
     preserve_boot_volume = false
       
 
-  depends_on = [ tls_private_key.reverse_proxy_vm_ssh_key ]
+  depends_on = [ tls_private_key.reverse_proxy_vm_ssh_key, oci_core_network_security_group.reverse_proxy_network_security_group ]
 }
 
 
-
+# ===== Reverse Proxy Instance - IP Address =========
 # IP Address Provisioning and Allocation
 variable "reverse_proxy_vm_ip_display_name" {
   type = string 
@@ -157,8 +204,126 @@ resource "oci_core_public_ip" "main_reserved_public_ip" {
     #Optional
     # defined_tags = {"Operations.CostCenter"= "42"}
     display_name = var.reverse_proxy_vm_ip_display_name
+
+    # this is the private ip's ocid found from the vnic when the reverse proxy computing instance was provisioned
     private_ip_id = data.oci_core_private_ips.reverse_proxy_vm_primary_ip_search.private_ips[0].id
     # freeform_tags = {"Department"= "Finance"}
     # public_ip_pool_id = oci_core_public_ip_pool.test_public_ip_pool.id
     depends_on = [ oci_core_instance.reverse_proxy_vm ]
+}
+
+
+# ===== Reverse Proxy Instance - Network Security Group & Attributes =========
+variable "reverse_proxy_NSG_display_name" {
+  type = string
+  description = "The display name for the reverse proxy's Network Security Group resource"
+}
+
+# This network security group will be used for the public facing vm instance
+# https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_network_security_group
+resource "oci_core_network_security_group" "reverse_proxy_network_security_group" {
+    #Required
+    compartment_id = oci_identity_compartment.data_arch_compartment.id
+    vcn_id = module.main_vcn.vcn_id
+
+    #Optional
+    # defined_tags = {"Operations.CostCenter"= "42"}
+    display_name = var.reverse_proxy_NSG_display_name
+    # freeform_tags = {"Department"= "Finance"}
+}
+
+variable "private_NSG_display_name" {
+  type = string
+  description = "The display name for the reverse proxy's recipient Network Security Group resource. The recipient of the reverse proxy's directed traffic include the Headscale control server VM and the other project VM"
+}
+
+# This network security group will be used for the private facing vm instances (the Headscale vm and the project vm)
+# https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_network_security_group
+resource "oci_core_network_security_group" "private_network_security_group" {
+    #Required
+    compartment_id = oci_identity_compartment.data_arch_compartment.id
+    vcn_id = module.main_vcn.vcn_id
+
+    #Optional
+    # defined_tags = {"Operations.CostCenter"= "42"}
+    display_name = var.private_NSG_display_name
+    # freeform_tags = {"Department"= "Finance"}
+}
+
+
+# =============================================================================
+# SECURITY RULES FOR REVERSE PROXY NSG <--> RECIPIENT (PRIVATE) NSG
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. REVERSE PROXY NSG RULES
+# -----------------------------------------------------------------------------
+
+# Allow Reverse Proxy to send traffic out to the Private VMs
+# By using a map of objects, your security architecture easily scales. If you later decide to add a completely different application that doesn't use web standards
+# for example, a custom API on port 5000 can be mapped from an external port 8000 without needing you to touch your NSG code at all.
+
+variable "forwarding_rules" {
+  type = map(object({
+    public_port  = number
+    backend_port = number
+  }))
+
+  default = {
+    "http" = {
+      public_port  = 80
+      backend_port = 8080
+    },
+    "https" = {
+      public_port  = 443
+      backend_port = 8443
+    },
+    # Just add a new block to your variable inputs; Terraform handles the rest automatically
+    # "custom_api" = {
+    # public_port  = 8000
+    # backend_port = 5000
+    # }
+
+  }
+}
+
+# 1. Public Proxy NSG (Egress to Private Subnet)
+# This rule tells the proxy: "You are allowed to talk to the private VMs, 
+# but ONLY on the specific backend ports they are listening on."
+resource "oci_core_network_security_group_security_rule" "proxy_to_private_egress" {
+  for_each                  = var.forwarding_rules
+  network_security_group_id = oci_core_network_security_group.reverse_proxy_network_security_group.id
+  direction                 = "EGRESS"
+  protocol                  = "6" # TCP
+
+  destination_type = "NETWORK_SECURITY_GROUP"
+  destination      = oci_core_network_security_group.private_network_security_group.id
+
+  tcp_options {
+    destination_port_range {
+      # We use backend_port because that's where the traffic is going
+      min = each.value.backend_port
+      max = each.value.backend_port
+    }
+  }
+}
+
+# 2. Private Backend NSG (Ingress from Proxy Subnet)
+# This rule tells the private VMs: "You may accept incoming traffic from the proxy, 
+# but only on your designated backend ports."
+resource "oci_core_network_security_group_security_rule" "private_from_proxy_ingress" {
+  for_each                  = var.forwarding_rules
+  network_security_group_id = oci_core_network_security_group.private_network_security_group.id
+  direction                 = "INGRESS"
+  protocol                  = "6" # TCP
+
+  source_type = "NETWORK_SECURITY_GROUP"
+  source      = oci_core_network_security_group.reverse_proxy_network_security_group.id
+
+  tcp_options {
+    destination_port_range {
+      min = each.value.backend_port
+      max = each.value.backend_port
+    }
+  }
 }
