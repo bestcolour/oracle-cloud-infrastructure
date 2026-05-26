@@ -327,3 +327,39 @@ resource "oci_core_network_security_group_security_rule" "private_from_proxy_ing
     }
   }
 }
+
+# =============================================================================
+# PUBLIC FACING INGRESS RULES FOR REVERSE PROXY NSG
+# =============================================================================
+
+# Allow HTTP Ingress traffic from anywhere on the internet (Required for Certbot validation)
+resource "oci_core_network_security_group_security_rule" "reverse_proxy_http_ingress" {
+  network_security_group_id = oci_core_network_security_group.reverse_proxy_network_security_group.id
+  direction                 = "INGRESS"
+  protocol                  = "6" # TCP
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+
+  tcp_options {
+    destination_port_range {
+      min = 80
+      max = 80
+    }
+  }
+}
+
+# Allow HTTPS Ingress traffic from anywhere on the internet
+resource "oci_core_network_security_group_security_rule" "reverse_proxy_https_ingress" {
+  network_security_group_id = oci_core_network_security_group.reverse_proxy_network_security_group.id
+  direction                 = "INGRESS"
+  protocol                  = "6" # TCP
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+
+  tcp_options {
+    destination_port_range {
+      min = 443
+      max = 443
+    }
+  }
+}
