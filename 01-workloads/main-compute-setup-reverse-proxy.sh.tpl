@@ -76,7 +76,8 @@ fi
 echo "Configuring iptables for Oracle Cloud..."
 for PORT in $OPEN_TCP_PORTS; do
     echo "Opening TCP port: $PORT"
-    sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport "$PORT" -j ACCEPT
+    # line 5 is chosen as it will be the REJECT rule line. We want to place our new rules BEFORE the reject rule
+    sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport "$PORT" -j ACCEPT
 done
 
 sudo netfilter-persistent save
@@ -133,6 +134,10 @@ EOF
 
 # Enable the configuration
 sudo ln -sf /etc/nginx/sites-available/reverse_proxy /etc/nginx/sites-enabled/
+
+# Reload Nginx so it actively serves your subdomains before Certbot triggers
+sudo nginx -t
+sudo systemctl reload nginx
 
 # --- 6.5 AUTOMATED SSL/TLS (HTTPS) SETUP WITH CERTBOT ---
 echo "Starting automated SSL/TLS setup via Certbot..."
