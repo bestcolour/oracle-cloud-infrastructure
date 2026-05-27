@@ -1,6 +1,6 @@
 # https://docs.oracle.com/en-us/iaas/Content/dev/terraform/tutorials/tf-compute.htm
 
-# --- oci related Variables ---
+# === oci related Variables ===
 variable "kms_main_vault_ocid" {
   type = string 
   description = "The ocid of the main kms vault provisioned in the bootstrap terraform project."
@@ -58,7 +58,7 @@ variable "your_tcp_ports" {
   default     = ["80", "443"]
 }
 
-#  DuckDNS configuration
+# DuckDNS configuration
 variable "your_duckdns_token" {
   type        = string
   description = "The API token provided by DuckDNS for dynamic DNS updates."
@@ -70,7 +70,7 @@ variable "your_duckdns_domainname" {
   description = "The subdomain part of your DuckDNS configuration (just the name, excluding '.duckdns.org')."
 }
 
-#  Domain & backend configuration
+# Domain & backend configuration
 variable "your_base_domain" {
   type        = string
   description = "The top-level base domain name (e.g., 'example.com') used to derive subdomains."
@@ -218,7 +218,7 @@ resource "oci_core_public_ip" "main_reserved_public_ip" {
 }
 
 
-# ===== Security rules for reverse proxy NSG <--> recipient (private) & Network Security Group (NSG) =========
+# ===== Network Security Groups (NSG) =========
 variable "reverse_proxy_NSG_display_name" {
   type = string
   description = "The display name for the reverse proxy's Network Security Group resource"
@@ -255,6 +255,7 @@ resource "oci_core_network_security_group" "private_network_security_group" {
     # freeform_tags = {"Department"= "Finance"}
 }
 
+# ===== Network Security Groups (NSG) Rules - Reverse Proxy NSG <-> Private NSG =========
 
 # ----- 1. REVERSE PROXY NSG RULES -----
 # Allow Reverse Proxy to send traffic out to the Private VMs
