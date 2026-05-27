@@ -263,7 +263,7 @@ resource "oci_core_network_security_group" "private_network_security_group" {
 # By using a map of objects, your security architecture easily scales. If you later decide to add a completely different application that doesn't use web standards
 # for example, a custom API on port 5000 can be mapped from an external port 8000 without needing you to touch your NSG code at all.
 
-variable "forwarding_rules" {
+variable "reverse_proxy_forwarding_rules" {
   type = map(object({
     public_port  = number
     backend_port = number
@@ -291,7 +291,7 @@ variable "forwarding_rules" {
 # This rule tells the proxy: "You are allowed to talk to the private VMs, 
 # but ONLY on the specific backend ports they are listening on."
 resource "oci_core_network_security_group_security_rule" "proxy_to_private_egress" {
-  for_each                  = var.forwarding_rules
+  for_each                  = var.reverse_proxy_forwarding_rules
   network_security_group_id = oci_core_network_security_group.reverse_proxy_network_security_group.id
   direction                 = "EGRESS"
   protocol                  = "6" # TCP
@@ -312,7 +312,7 @@ resource "oci_core_network_security_group_security_rule" "proxy_to_private_egres
 # This rule tells the private VMs: "You may accept incoming traffic from the proxy, 
 # but only on your designated backend ports."
 resource "oci_core_network_security_group_security_rule" "private_from_proxy_ingress" {
-  for_each                  = var.forwarding_rules
+  for_each                  = var.reverse_proxy_forwarding_rules
   network_security_group_id = oci_core_network_security_group.private_network_security_group.id
   direction                 = "INGRESS"
   protocol                  = "6" # TCP
