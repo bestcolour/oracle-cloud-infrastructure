@@ -1,6 +1,5 @@
 # https://docs.oracle.com/en-us/iaas/Content/dev/terraform/tutorials/tf-compute.htm
 
-# ===== Reverse Proxy Instance =========
 # --- oci related Variables ---
 variable "kms_main_vault_ocid" {
   type = string 
@@ -16,6 +15,10 @@ variable "free_forever_compute_shape" {
   default = "VM.Standard.A1.Flex"
   description = "The shape of the compute which is free forever. Eg. VM.Standard.A1.Flex"
 }
+
+
+# ===== Reverse Proxy Instance =========
+# --- computing instance related Variables ---
 
 variable "reverse_proxy_vm_ssh_key_secret_name" {
   type = string 
@@ -46,16 +49,16 @@ variable "reverse_proxy_vm_hostname_label" {
   description = "The hostname for the VNIC's primary private IP. Used for DNS. The value is the hostname portion of the primary private IP's fully qualified domain name (FQDN) (for example, bminstance1 in FQDN bminstance1.subnet123.vcn1.oraclevcn.com). Must be unique across all VNICs in the subnet and comply with RFC 952 and RFC 1123. The value appears in the Vnic object and also the PrivateIp object returned by ListPrivateIps and GetPrivateIp."
 }
 
+
 # --- cloud-init script related Variables ---
-# NETWORK CONFIGURATION 
+# Network configuration
 variable "your_tcp_ports" {
   type        = list(string)
   description = "A list of TCP ports to open for the security configuration (e.g., ['80', '443'])."
   default     = ["80", "443"]
 }
 
-#  DUCKDNS CONFIGURATION 
-
+#  DuckDNS configuration
 variable "your_duckdns_token" {
   type        = string
   description = "The API token provided by DuckDNS for dynamic DNS updates."
@@ -67,8 +70,7 @@ variable "your_duckdns_domainname" {
   description = "The subdomain part of your DuckDNS configuration (just the name, excluding '.duckdns.org')."
 }
 
-#  DOMAIN & BACKEND CONFIGURATION 
-
+#  Domain & backend configuration
 variable "your_base_domain" {
   type        = string
   description = "The top-level base domain name (e.g., 'example.com') used to derive subdomains."
@@ -84,7 +86,8 @@ variable "projects_private_ip_n_port" {
   description = "The internal IP address and port for the side-projects backend (e.g., '10.0.1.20:8080')."
 }
 
-# --- Resources ---
+
+# --- ssh key pair ---
 # 1. Generate the SSH Key Pair in memory
 resource "tls_private_key" "reverse_proxy_vm_ssh_key" {
   algorithm = "RSA"
@@ -105,6 +108,7 @@ resource "oci_vault_secret" "reverse_proxy_vm_ssh_key_secret" {
   depends_on = [ tls_private_key.reverse_proxy_vm_ssh_key ]
 }
 
+# --- computing core instance ---
 resource "oci_core_instance" "reverse_proxy_vm" {
     #Required
     availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
@@ -176,6 +180,7 @@ resource "oci_core_instance" "reverse_proxy_vm" {
 }
 
 
+
 # ===== Reverse Proxy Instance - IP Address =========
 # IP Address Provisioning and Allocation
 variable "reverse_proxy_vm_ip_display_name" {
@@ -213,7 +218,7 @@ resource "oci_core_public_ip" "main_reserved_public_ip" {
 }
 
 
-# ===== Reverse Proxy Instance - Network Security Group & Attributes =========
+# ===== Security rules for reverse proxy NSG <--> recipient (private) & Network Security Group (NSG) =========
 variable "reverse_proxy_NSG_display_name" {
   type = string
   description = "The display name for the reverse proxy's Network Security Group resource"
@@ -251,14 +256,7 @@ resource "oci_core_network_security_group" "private_network_security_group" {
 }
 
 
-# =============================================================================
-# SECURITY RULES FOR REVERSE PROXY NSG <--> RECIPIENT (PRIVATE) NSG
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# 1. REVERSE PROXY NSG RULES
-# -----------------------------------------------------------------------------
-
+# ----- 1. REVERSE PROXY NSG RULES -----
 # Allow Reverse Proxy to send traffic out to the Private VMs
 # By using a map of objects, your security architecture easily scales. If you later decide to add a completely different application that doesn't use web standards
 # for example, a custom API on port 5000 can be mapped from an external port 8000 without needing you to touch your NSG code at all.
@@ -328,9 +326,7 @@ resource "oci_core_network_security_group_security_rule" "private_from_proxy_ing
   }
 }
 
-# =============================================================================
-# PUBLIC FACING INGRESS RULES FOR REVERSE PROXY NSG
-# =============================================================================
+# ----- 2. PUBLIC FACING INGRESS RULES FOR REVERSE PROXY NSG -----
 
 # Allow HTTP Ingress traffic from anywhere on the internet (Required for Certbot validation)
 resource "oci_core_network_security_group_security_rule" "reverse_proxy_http_ingress" {
