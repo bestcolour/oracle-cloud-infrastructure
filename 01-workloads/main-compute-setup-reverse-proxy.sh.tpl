@@ -20,11 +20,11 @@ MAX_RETRIES=20
 BASE_DOMAIN="${your_base_domain}" 
 
 # Headscale Subdomain (Routed through HTTP backend rule)
-HEADSCALE_SUBDOMAIN="headscale.$BASE_DOMAIN"
+HEADSCALE_SUBDOMAIN="${your_headscale_subdomain_name}.$BASE_DOMAIN"
 HEADSCALE_BACKEND="${headscale_private_ip_n_port}" 
 
 # Side Project Subdomain (Routed through HTTPS backend rule)
-PROJECTS_SUBDOMAIN="projects.$BASE_DOMAIN"
+PROJECTS_SUBDOMAIN="${your_project_1_subdomain_name}.$BASE_DOMAIN"
 PROJECTS_BACKEND="${projects_private_ip_n_port}"
 
 # --- CRITICAL ENVIRONMENT FOR NON-INTERACTIVITY ---

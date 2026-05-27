@@ -16,14 +16,62 @@ variable "free_forever_compute_shape" {
   description = "The shape of the compute which is free forever. Eg. VM.Standard.A1.Flex"
 }
 
-
-# ===== Reverse Proxy Instance =========
-# --- computing instance related Variables ---
-
+# ===== Reverse Proxy Instance - ssh key pair =========
 variable "reverse_proxy_vm_ssh_key_secret_name" {
   type = string 
   description = "The ocid of the main kms key provisioned in the bootstrap terraform project."
 }
+
+# 1. Generate the SSH Key Pair in memory
+resource "tls_private_key" "reverse_proxy_vm_ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# 4. Store the Private Key as a Secret in the Vault
+resource "oci_vault_secret" "reverse_proxy_vm_ssh_key_secret" {
+  compartment_id = oci_identity_compartment.data_arch_compartment.id
+  vault_id       = var.kms_main_vault_ocid
+  key_id         = var.kms_main_key_ocid
+  secret_name    = var.reverse_proxy_vm_ssh_key_secret_name
+
+  secret_content {
+    content_type = "BASE64"
+    content      = base64encode(tls_private_key.reverse_proxy_vm_ssh_key.private_key_pem)
+  }
+  depends_on = [ tls_private_key.reverse_proxy_vm_ssh_key ]
+}
+
+# ===== Headscale Instance - ssh key pair =========
+variable "headscale_vm_ssh_key_secret_name" {
+  type        = string 
+  description = "The ocid of the main kms key provisioned in the bootstrap terraform project."
+}
+
+# 1. Generate the SSH Key Pair in memory
+resource "tls_private_key" "headscale_vm_ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# 4. Store the Private Key as a Secret in the Vault
+resource "oci_vault_secret" "headscale_vm_ssh_key_secret" {
+  compartment_id = oci_identity_compartment.data_arch_compartment.id
+  vault_id       = var.kms_main_vault_ocid
+  key_id         = var.kms_main_key_ocid
+  secret_name    = var.headscale_vm_ssh_key_secret_name
+
+  secret_content {
+    content_type = "BASE64"
+    content      = base64encode(tls_private_key.headscale_vm_ssh_key.private_key_pem)
+  }
+  depends_on = [ tls_private_key.headscale_vm_ssh_key ]
+}
+
+
+# ===== Reverse Proxy Instance =========
+# --- computing instance related Variables ---
+
 variable "reverse_proxy_vm_name" {
   type = string 
   description = "The name of the compute instance provisioned for the role of a reverse proxy"
@@ -76,9 +124,19 @@ variable "your_base_domain" {
   description = "The top-level base domain name (e.g., 'example.com') used to derive subdomains."
 }
 
-variable "headscale_private_ip_n_port" {
+variable "your_headscale_subdomain_name" {
   type        = string
-  description = "The internal IP address and port for the Headscale backend (e.g., '10.0.1.10:8080')."
+  description = "e.g., 'headscale'. So the full subdomain will look like 'headscale.example.com'"
+}
+
+variable "your_project_1_subdomain_name" {
+  type        = string
+  description = "e.g., 'test'. So the full subdomain will look like 'test.example.com'"
+}
+
+variable "headscale_port" {
+  type        = string
+  description = "The port for the headscale backend (e.g., '10.0.1.20:8080')."
 }
 
 variable "projects_private_ip_n_port" {
@@ -86,27 +144,6 @@ variable "projects_private_ip_n_port" {
   description = "The internal IP address and port for the side-projects backend (e.g., '10.0.1.20:8080')."
 }
 
-
-# --- ssh key pair ---
-# 1. Generate the SSH Key Pair in memory
-resource "tls_private_key" "reverse_proxy_vm_ssh_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-# 4. Store the Private Key as a Secret in the Vault
-resource "oci_vault_secret" "reverse_proxy_vm_ssh_key_secret" {
-  compartment_id = oci_identity_compartment.data_arch_compartment.id
-  vault_id       = var.kms_main_vault_ocid
-  key_id         = var.kms_main_key_ocid
-  secret_name    = var.reverse_proxy_vm_ssh_key_secret_name
-
-  secret_content {
-    content_type = "BASE64"
-    content      = base64encode(tls_private_key.reverse_proxy_vm_ssh_key.private_key_pem)
-  }
-  depends_on = [ tls_private_key.reverse_proxy_vm_ssh_key ]
-}
 
 # --- computing core instance ---
 resource "oci_core_instance" "reverse_proxy_vm" {
@@ -167,7 +204,9 @@ resource "oci_core_instance" "reverse_proxy_vm" {
           your_duckdns_token= var.your_duckdns_token
           your_duckdns_domainname= var.your_duckdns_domainname
           your_base_domain= var.your_base_domain
-          headscale_private_ip_n_port= var.headscale_private_ip_n_port
+          your_headscale_subdomain_name= var.your_headscale_subdomain_name
+          your_project_1_subdomain_name= var.your_project_1_subdomain_name
+          headscale_private_ip_n_port= "${oci_core_instance.headscale_vm.private_ip}:${var.headscale_port}"
           projects_private_ip_n_port= var.projects_private_ip_n_port        
         }
         )
@@ -264,22 +303,18 @@ resource "oci_core_network_security_group" "private_network_security_group" {
 
 variable "reverse_proxy_forwarding_rules" {
   type = map(object({
-    public_port  = number
     backend_port = number
   }))
 
   default = {
-    "http" = {
-      public_port  = 80
+    "headscale" = {
       backend_port = 8080
     },
-    "https" = {
-      public_port  = 443
+    "app2" = {
       backend_port = 8443
     },
     # Just add a new block to your variable inputs; Terraform handles the rest automatically
     # "custom_api" = {
-    # public_port  = 8000
     # backend_port = 5000
     # }
 
