@@ -68,6 +68,11 @@ resource "oci_vault_secret" "headscale_vm_ssh_key_secret" {
   depends_on = [ tls_private_key.headscale_vm_ssh_key ]
 }
 
+
+########################################################################################################################
+# EVERYTHING FROM HERE ONWARDS CAN BE COMMENTED OUT TO TF DESTROY/REPROVISION WITHOUT CHANGING TFVAR VALUE
+########################################################################################################################
+
 # ===== Cloud Init Variables - Domain & backend configuration =====
 # Network configuration
 variable "your_reverse_proxy_tcp_ports" {
@@ -147,6 +152,11 @@ variable "secure_web_gateway_vm_hostname_label" {
   type = string 
   description = "The hostname for the VNIC's primary private IP. Used for DNS. The value is the hostname portion of the primary private IP's fully qualified domain name (FQDN) (for example, bminstance1 in FQDN bminstance1.subnet123.vcn1.oraclevcn.com). Must be unique across all VNICs in the subnet and comply with RFC 952 and RFC 1123. The value appears in the Vnic object and also the PrivateIp object returned by ListPrivateIps and GetPrivateIp."
 }
+variable "secure_web_gateway_static_private_ip" {
+  type        = string
+  description = "The static private IP assigned to the Secure Web Gateway (must be within the public subnet CIDR)."
+  # Example: default = "10.0.0.10" 
+}
 
 
 
@@ -172,6 +182,7 @@ resource "oci_core_instance" "secure_web_gateway_vm" {
         # security_attributes = var.secure_web_gateway_vm_security_attributes # not using since this is outside of free forever tier
 
         subnet_id = oci_core_subnet.main_vcn_public_subnet.id
+        private_ip = var.secure_web_gateway_static_private_ip
     }
 
 
@@ -211,7 +222,7 @@ resource "oci_core_instance" "secure_web_gateway_vm" {
           your_base_domain= var.your_base_domain
           your_headscale_subdomain_name= var.your_headscale_subdomain_name
           your_project_1_subdomain_name= var.your_project_1_subdomain_name
-          headscale_private_ip_n_port= "${oci_core_instance.headscale_vm.private_ip}:${var.headscale_port}"
+          headscale_private_ip_n_port   = "${var.headscale_static_private_ip}:${var.headscale_port}"
           projects_private_ip_n_port= var.projects_private_ip_n_port    
           forward_proxy_port=var.forward_proxy_port    
         }
@@ -290,7 +301,11 @@ variable "headscale_vm_hostname_label" {
   type        = string 
   description = "The hostname for the VNIC's primary private IP. Used for DNS. The value is the hostname portion of the primary private IP's fully qualified domain name (FQDN) (for example, bminstance1 in FQDN bminstance1.subnet123.vcn1.oraclevcn.com). Must be unique across all VNICs in the subnet and comply with RFC 952 and RFC 1123. The value appears in the Vnic object and also the PrivateIp object returned by ListPrivateIps and GetPrivateIp."
 }
-
+variable "headscale_static_private_ip" {
+  type        = string
+  description = "The static private IP assigned to the Headscale VM (must be within the private subnet CIDR)."
+  # Example: default = "10.0.1.10"
+}
 
 
 # --- computing core instance ---
@@ -315,6 +330,7 @@ resource "oci_core_instance" "headscale_vm" {
         # security_attributes = var.headscale_vm_security_attributes # not using since this is outside of free forever tier
 
         subnet_id = oci_core_subnet.main_vcn_private_subnet.id
+        private_ip = var.headscale_static_private_ip
     }
 
 
@@ -351,7 +367,8 @@ resource "oci_core_instance" "headscale_vm" {
           your_headscale_fqdn="${var.your_duckdns_domainname}.${var.your_base_domain}"
           your_headscale_version=var.your_headscale_version
           your_base_domain=var.your_base_domain
-          reverse_proxy_private_ip = oci_core_instance.secure_web_gateway_vm.private_ip
+          reverse_proxy_private_ip = var.secure_web_gateway_static_private_ip
+          forward_proxy_port = var.forward_proxy_port
         }
         )
       )
@@ -430,7 +447,7 @@ variable "reverse_proxy_forwarding_rules" {
 # but ONLY on the specific backend ports they are listening on."
 resource "oci_core_network_security_group_security_rule" "reverse_proxy_to_private_egress" {
   for_each                  = var.reverse_proxy_forwarding_rules
-  network_security_group_id = oci_core_network_security_group.reverse_proxy_network_security_group.id
+  network_security_group_id = oci_core_network_security_group.secure_web_gateway_network_security_group.id
   direction                 = "EGRESS"
   protocol                  = "6" # TCP
 
@@ -456,7 +473,7 @@ resource "oci_core_network_security_group_security_rule" "private_from_reverse_p
   protocol                  = "6" # TCP
 
   source_type = "NETWORK_SECURITY_GROUP"
-  source      = oci_core_network_security_group.reverse_proxy_network_security_group.id
+  source      = oci_core_network_security_group.secure_web_gateway_network_security_group.id
 
   tcp_options {
     destination_port_range {
@@ -470,7 +487,7 @@ resource "oci_core_network_security_group_security_rule" "private_from_reverse_p
 
 # Allow HTTP Ingress traffic from anywhere on the internet (Required for Certbot validation)
 resource "oci_core_network_security_group_security_rule" "reverse_proxy_http_ingress" {
-  network_security_group_id = oci_core_network_security_group.reverse_proxy_network_security_group.id
+  network_security_group_id = oci_core_network_security_group.secure_web_gateway_network_security_group.id
   direction                 = "INGRESS"
   protocol                  = "6" # TCP
   source                    = "0.0.0.0/0"
@@ -486,7 +503,7 @@ resource "oci_core_network_security_group_security_rule" "reverse_proxy_http_ing
 
 # Allow HTTPS Ingress traffic from anywhere on the internet
 resource "oci_core_network_security_group_security_rule" "reverse_proxy_https_ingress" {
-  network_security_group_id = oci_core_network_security_group.reverse_proxy_network_security_group.id
+  network_security_group_id = oci_core_network_security_group.secure_web_gateway_network_security_group.id
   direction                 = "INGRESS"
   protocol                  = "6" # TCP
   source                    = "0.0.0.0/0"

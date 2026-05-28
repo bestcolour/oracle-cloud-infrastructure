@@ -16,6 +16,20 @@ export http_proxy="http://$PROXY_IP:$PROXY_PORT"
 export https_proxy="http://$PROXY_IP:$PROXY_PORT"
 export ftp_proxy="http://$PROXY_IP:$PROXY_PORT"
 
+# --- -1. WAIT FOR TINYPROXY & CONFIGURE APT ---
+# this section was added to allow the headscale VM to run only after the secure web gateway has finished setting up the forward proxy. The reason why we dont use terraform's "depends on" to do this is because cloud-init setup runs are asynchronous in the context of Terraform provisioning. Terraform will provision the secure web gateway computing instance first but it will not wait for its cloud init script to finish before provisioning and running headscale's computing instance & cloud init script
+echo "Waiting for Secure Web Gateway (Tinyproxy) to come online..."
+# Loop until we can successfully fetch headers from the Ubuntu archive through the proxy
+until curl -x "http://$PROXY_IP:$PROXY_PORT" -I "http://archive.ubuntu.com" -m 5 -s -o /dev/null; do
+    echo "Tinyproxy at $PROXY_IP:$PROXY_PORT is not ready yet. Retrying in 15 seconds..."
+    sleep 15
+done
+echo "Tinyproxy is reachable! Proceeding with setup."
+
+# Force APT to use the proxy (since sudo drops standard environment variables)
+echo "Acquire::http::Proxy \"http://$PROXY_IP:$PROXY_PORT\";" | sudo tee /etc/apt/apt.conf.d/01proxy
+echo "Acquire::https::Proxy \"http://$PROXY_IP:$PROXY_PORT\";" | sudo tee -a /etc/apt/apt.conf.d/01proxy
+
 # Reusable robust Apt Lock Waiter Function
 wait_for_apt() {
     echo "Checking package manager locks..."
