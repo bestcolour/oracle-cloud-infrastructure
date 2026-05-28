@@ -3,20 +3,20 @@
 set -e
 
 #######################################################################
-# ORACLE CLOUD UBUNTU INTEGRATED SECURITY & REVERSE PROXY SETUP SCRIPT
+# ORACLE CLOUD UBUNTU INTEGRATED SECURITY & REVERSE PROXY SETUP SCRIPT & FORWARD PROXY SETUP
 #######################################################################
 
-# --- VARIABLES ---
-OPEN_TCP_PORTS="${your_tcp_ports}" # e.g., "80 443"
+# --- Reverse Proxy - VARIABLES ---
+REVERSE_PROXY_OPEN_TCP_PORTS="${your_reverse_proxy_tcp_ports}" # e.g., "80 443"
 AUTO_REBOOT="true"
 REBOOT_TIME="03:00"
 
-# --- Automate DuckDNS Update ---
+# --- Reverse Proxy - Automate DuckDNS Update ---
 DUCKDNS_TOKEN="${your_duckdns_token}"
-DUCKDNS_DOMAIN="${your_duckdns_domainname}"
+DUCKDNS_DOMAIN_NAME="${your_duckdns_domainname}"
 MAX_RETRIES=20
 
-# --- DOMAIN & BACKEND CONFIGURATION ---
+# --- Reverse Proxy - DOMAIN & BACKEND CONFIGURATION ---
 BASE_DOMAIN="${your_base_domain}" 
 
 # Headscale Subdomain (Routed through HTTP backend rule)
@@ -26,6 +26,9 @@ HEADSCALE_BACKEND="${headscale_private_ip_n_port}"
 # Side Project Subdomain (Routed through HTTPS backend rule)
 PROJECTS_SUBDOMAIN="${your_project_1_subdomain_name}.$BASE_DOMAIN"
 PROJECTS_BACKEND="${projects_private_ip_n_port}"
+
+# --- Forward Proxy ---
+FORWARD_PROXY_PORT="${forward_proxy_port}"
 
 # --- CRITICAL ENVIRONMENT FOR NON-INTERACTIVITY ---
 export DEBIAN_FRONTEND=noninteractive
@@ -74,7 +77,7 @@ fi
 
 # --- 4. CONFIGURE ORACLE FIREWALL (IPTABLES) ---
 echo "Configuring iptables for Oracle Cloud..."
-for PORT in $OPEN_TCP_PORTS; do
+for PORT in $REVERSE_PROXY_OPEN_TCP_PORTS; do
     echo "Opening TCP port: $PORT"
     # line 5 is chosen as it will be the REJECT rule line. We want to place our new rules BEFORE the reject rule
     sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport "$PORT" -j ACCEPT
@@ -174,7 +177,7 @@ echo "Successfully detected Public IP of this instance: $PUBLIC_IP"
 
 echo "Updating DuckDNS..."
 # Appending || true ensures that even if DuckDNS responds slowly, it won't trigger set -e to kill our script
-curl -s "https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN&token=$DUCKDNS_TOKEN&ip=$PUBLIC_IP" || echo "DuckDNS API warning triggered."
+curl -s "https://www.duckdns.org/update?domains=$DUCKDNS_DOMAIN_NAME&token=$DUCKDNS_TOKEN&ip=$PUBLIC_IP" || echo "DuckDNS API warning triggered."
 
 # DNS Waiter Loop
 for DOMAIN in "$HEADSCALE_SUBDOMAIN" "$PROJECTS_SUBDOMAIN"; do
@@ -209,6 +212,18 @@ sudo certbot --nginx \
 echo "Verifying and reloading Nginx configuration..."
 sudo nginx -t
 sudo systemctl reload nginx
+
+# --- 7. FORWARD PROXY CONFIGURATION FOR PRIVATE SUBNET ---
+echo "Installing and configuring Tinyproxy as a forward proxy..."
+wait_for_apt
+sudo apt-get install -y tinyproxy
+
+# Configure Tinyproxy to allow your internal VCN subnet (adjust 10.0.0.0/16 if your VCN CIDR is different)
+sudo sed -i "s/^Port $FORWARD_PROXY_PORT/Port $FORWARD_PROXY_PORT/" /etc/tinyproxy/tinyproxy.conf
+echo "Allow 10.0.0.0/16" | sudo tee -a /etc/tinyproxy/tinyproxy.conf
+
+sudo systemctl restart tinyproxy
+sudo systemctl enable tinyproxy
 
 echo "----------------------------------------------------"
 echo "Setup Complete!"
