@@ -256,6 +256,7 @@ your_project_1_subdomain_name = "wip"
 headscale_port = "8080"
 projects_private_ip_n_port  = "10.0.1.20:8443"# still not correct value
 your_headscale_version = "0.28.0"
+your_cert_email="johndoe@gmail.com"
 
 # Computing Instance - Secure Web Gateway
 secure_web_gateway_vm_ssh_key_secret_name = "my-secure-web-gateway-secret" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
