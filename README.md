@@ -217,16 +217,79 @@ user_ocid        = "ocid1.user.oc1..aaaaaaaayexample"
 
 # Authentication
 fingerprint      = "20:3b:97:13:55:1c:..."
-private_key_path = #TO DO, SET THIS PATH TO THE VOLUME MOUNTED PATH WITHIN DOCKER COMPOSE eg. "/workspace/.oci/oci_api_key.pem"
+private_key_path = "/workspace/.oci/oci_api_key.pem"
 
 # Infrastructure Region
 region           = "us-ashburn-1"
 
-# =============== STOP HERE IF YOU ARE WRITING TFVARS FILE FOR BOOTSTRAP DIRECTORY ============
+# Compartments
+second_root_compartment_ocid ="ocid1.compartment.oc1..aaaaaaaaxexample"
 
+# kms resources
+kms_main_vault_ocid = "ocid1.vault.oc1.us-ashburn-1..example"
+kms_main_key_ocid = "ocid1.key.oc1.us-ashburn-1..example"
+
+# VCN
 vcn_name = "vcn-1"
 vcn_dns_label = "ohnoooo"
 vcn_cidr_blocks = ["10.0.0.0/16"]
+main_vcn_private_subnet_dns_label = "private"
+main_vcn_public_subnet_dns_label = "public"
+
+# Computing Instance
+free_forever_compute_shape = "VM.Standard.A1.Flex"
+
+
+# Computing Instance - Cloudinit script related Variables - Network configuration
+your_reverse_proxy_tcp_ports = ["80", "443"]
+
+# Computing Instance - Cloudinit script related Variables - DuckDNS configuration
+your_duckdns_token      = "<add your duckdns token>"
+your_duckdns_domainname = "exampleduck"
+
+# Computing Instance - Cloudinit script related Variables - Domain & backend configuration
+your_base_domain            = "exampleduck.duckdns.org" # basically your your_duckdns_domainname+".duckdns.org"
+your_headscale_subdomain_name = "headscale"
+your_project_1_subdomain_name = "wip"
+headscale_port = "8080"
+projects_private_ip_n_port  = "10.0.1.20:8443"# still not correct value
+your_headscale_version = "0.28.0"
+
+# Computing Instance - Secure Web Gateway
+secure_web_gateway_vm_ssh_key_secret_name = "my-secure-web-gateway-secret" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
+secure_web_gateway_vm_name       = "my-secure-web-gateway-vm-name"
+secure_web_gateway_vm_memory     = 6
+secure_web_gateway_vm_ocpus      = 1
+secure_web_gateway_vm_source_id  = "example" # Find your this value here https://docs.oracle.com/en-us/iaas/images/ > choose the image you want to use > copy the link based on your region
+secure_web_gateway_vm_assign_public_ip = false
+secure_web_gateway_vm_hostname_label = "mysecurewebgateway"
+secure_web_gateway_vm_ip_display_name = "my-secure-web-gateway-reserved-public-ip"
+secure_web_gateway_static_private_ip = "10.0.0.10"
+
+# Computing Instance - Network Security Group
+secure_web_gateway_NSG_display_name = "my-secure-web-gateway-NSG"
+private_NSG_display_name = "private-VMs-NSG"
+reverse_proxy_forwarding_rules = {
+    "headscale" = {
+      backend_port = 8080
+    },
+  # Future apps can be cleanly added here:
+  # "nextcloud" = {
+  #   backend_port = 9000
+  # }
+  }
+forward_proxy_port=8888
+
+
+# Computing Instance - Headscale VPN
+headscale_vm_ssh_key_secret_name = "my-headscale-secret" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
+headscale_vm_name       = "my-headscale-vm-name"
+headscale_vm_memory     = 6
+headscale_vm_ocpus      = 1
+headscale_vm_source_id  = "example" # Find your this value here https://docs.oracle.com/en-us/iaas/images/ > choose the image you want to use > copy the link based on your region
+headscale_vm_assign_public_ip = false
+headscale_vm_hostname_label = "myheadscale"
+headscale_static_private_ip = "10.0.1.10"
 ```
 
 
@@ -296,6 +359,14 @@ docker compose -f oci.yml run --rm oci-cli "oci secrets secret-bundle get-secret
 ---
 ---
 
+
+## SSH to a private VM located within the private subnet
+To SSH into any of the private VMs located within the private subnet, we can use the secure web gateway computing instance as a Bastion and just SSH from it.
+
+Here is the how the ssh command line will look like:
+```
+ssh -o ProxyCommand="ssh -i /path/to/bastion_key.pem -W %h:%p username_bastion@<bastion_public_ip>" -i /path/to/headscale_key.pem username_headscale@<headscale_private_ip>
+```
 
 # Common Troubleshooting Issues
 
