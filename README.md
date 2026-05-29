@@ -234,7 +234,9 @@ vcn_name = "vcn-1"
 vcn_dns_label = "ohnoooo"
 vcn_cidr_blocks = ["10.0.0.0/16"]
 main_vcn_private_subnet_dns_label = "private"
+main_vcn_private_subnet_cidr_block ="10.0.1.0/24"
 main_vcn_public_subnet_dns_label = "public"
+main_vcn_public_subnet_cidr_block="10.0.0.0/24"
 
 # Computing Instance
 free_forever_compute_shape = "VM.Standard.A1.Flex"

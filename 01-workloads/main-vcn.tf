@@ -132,13 +132,18 @@ output "private_security_list_OCID" {
 variable "main_vcn_private_subnet_dns_label" {
   type = string
 }
+variable "main_vcn_private_subnet_cidr_block" {
+  type = string
+  description = "Eg. 10.0.0.0/24, 10.0.1.0/24. Do not repeat the cidr block value if it has already been assigned to another subnet"
+}
+
 
 resource "oci_core_subnet" "main_vcn_private_subnet"{
 
   # Required
   compartment_id = oci_identity_compartment.data_arch_compartment.id
   vcn_id = module.main_vcn.vcn_id
-  cidr_block = "10.0.1.0/24"
+  cidr_block = var.main_vcn_private_subnet_cidr_block
   dns_label = var.main_vcn_private_subnet_dns_label
   # Optional
   # Caution: For the route table id, use module.vcn.nat_route_id.
@@ -237,13 +242,18 @@ variable "main_vcn_public_subnet_dns_label" {
   type = string
 }
 
+variable "main_vcn_public_subnet_cidr_block" {
+  type = string
+  description = "Eg. 10.0.0.0/24, 10.0.1.0/24. Do not repeat the cidr block value if it has already been assigned to another subnet"
+}
+
 # Source from https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_subnet
 resource "oci_core_subnet" "main_vcn_public_subnet"{
 
   # Required
   compartment_id = oci_identity_compartment.data_arch_compartment.id
   vcn_id = module.main_vcn.vcn_id
-  cidr_block = "10.0.0.0/24"
+  cidr_block = var.main_vcn_public_subnet_cidr_block
   dns_label = var.main_vcn_public_subnet_dns_label
  
   # Optional

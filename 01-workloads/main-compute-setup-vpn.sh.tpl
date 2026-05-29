@@ -15,6 +15,7 @@ export NEEDRESTART_MODE=a
 export http_proxy="http://$PROXY_IP:$PROXY_PORT"
 export https_proxy="http://$PROXY_IP:$PROXY_PORT"
 export ftp_proxy="http://$PROXY_IP:$PROXY_PORT"
+export no_proxy="localhost,127.0.0.1,::1" # <-- ADD THIS
 
 # --- -1. WAIT FOR TINYPROXY & CONFIGURE APT ---
 # this section was added to allow the headscale VM to run only after the secure web gateway has finished setting up the forward proxy. The reason why we dont use terraform's "depends on" to do this is because cloud-init setup runs are asynchronous in the context of Terraform provisioning. Terraform will provision the secure web gateway computing instance first but it will not wait for its cloud init script to finish before provisioning and running headscale's computing instance & cloud init script
@@ -45,7 +46,7 @@ wait_for_apt() {
 wait_for_apt
 sudo apt-get purge -y needrestart || true
 wait_for_apt
-sudo apt-get update -y && sudo apt-get install -y curl jq iptables-persistent
+sudo apt-get update -y && sudo apt-get install -y curl jq iptables-persistent nano
 
 # --- 1. DOWNLOAD & INSTALL HEADSCALE ---
 echo "Fetching latest Headscale release..."
@@ -68,8 +69,24 @@ server_url: https://$HEADSCALE_FQDN
 listen_addr: 0.0.0.0:8080
 metrics_listen_addr: 127.0.0.1:9090
 
-db_type: sqlite3
-db_path: /var/lib/headscale/db.sqlite
+# Required for the CLI to communicate with the daemon securely
+unix_socket: /var/run/headscale/headscale.sock
+unix_socket_permission: "0770"
+
+# Required for Headscale 0.28.0+ Noise protocol
+noise:
+  private_key_path: /var/lib/headscale/noise_private.key
+
+# Required IP allocation ranges for Tailscale clients
+prefixes:
+  v4: 100.64.0.0/10
+  v6: fd7a:115c:a1e0::/48
+
+# Modernized database block
+database:
+  type: sqlite3
+  sqlite:
+    path: /var/lib/headscale/db.sqlite
 
 tls_cert_path: ""
 tls_key_path: ""
@@ -78,12 +95,22 @@ log:
   level: info
   format: text
 
-acl_policy_path: ""
-dns_config:
+# Modernized DNS block
+dns:
   magic_dns: true
-  base_domain: $BASE_DOMAIN
+  base_domain: vpn.internal
   nameservers:
-    - 1.1.1.1
+    global:
+      - 1.1.1.1
+
+derp:
+  server:
+    enabled: false
+  urls:
+    - https://controlplane.tailscale.com/derpmap/default
+  paths: []
+  auto_update_enabled: true
+  update_frequency: 24h
 EOF
 
 # Ensure appropriate permissions for the daemon user
@@ -99,6 +126,10 @@ After=syslog.target network.target
 Type=simple
 User=headscale
 WorkingDirectory=/var/lib/headscale
+# --- INJECT PROXY VARIABLES FOR DAEMON INTERNET ROUTING ---
+Environment="HTTP_PROXY=http://$PROXY_IP:$PROXY_PORT"
+Environment="HTTPS_PROXY=http://$PROXY_IP:$PROXY_PORT"
+Environment="NO_PROXY=localhost,127.0.0.1"
 ExecStart=/usr/local/bin/headscale serve
 Restart=always
 RestartSec=5

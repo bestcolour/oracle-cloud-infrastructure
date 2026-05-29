@@ -119,6 +119,11 @@ variable "projects_private_ip_n_port" {
   description = "The internal IP address and port for the side-projects backend (e.g., '10.0.1.20:8080')."
 }
 
+variable "your_cert_email" {
+  type        = string
+  description = "Email assigned the the automated cert retrieval process."
+}
+
 # Headscale Setup
 variable "your_headscale_version" {
   type = string 
@@ -225,6 +230,8 @@ resource "oci_core_instance" "secure_web_gateway_vm" {
           headscale_private_ip_n_port   = "${var.headscale_static_private_ip}:${var.headscale_port}"
           projects_private_ip_n_port= var.projects_private_ip_n_port    
           forward_proxy_port=var.forward_proxy_port    
+          your_vcn_cidr_block=var.vcn_cidr_blocks[0]
+          your_cert_email = var.your_cert_email
         }
         )
       )
@@ -364,7 +371,7 @@ resource "oci_core_instance" "headscale_vm" {
       user_data = base64encode(
         templatefile("${path.module}/main-compute-setup-vpn.sh.tpl",
         {
-          your_headscale_fqdn="${var.your_duckdns_domainname}.${var.your_base_domain}"
+          your_headscale_fqdn="${var.your_headscale_subdomain_name}.${var.your_base_domain}"
           your_headscale_version=var.your_headscale_version
           your_base_domain=var.your_base_domain
           reverse_proxy_private_ip = var.secure_web_gateway_static_private_ip

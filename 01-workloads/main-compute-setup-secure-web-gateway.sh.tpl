@@ -29,6 +29,7 @@ PROJECTS_BACKEND="${projects_private_ip_n_port}"
 
 # --- Forward Proxy ---
 FORWARD_PROXY_PORT="${forward_proxy_port}"
+VCN_CIDR_BLOCK="${your_vcn_cidr_block}" #eg. 10.0.0.0/16
 
 # --- CRITICAL ENVIRONMENT FOR NON-INTERACTIVITY ---
 export DEBIAN_FRONTEND=noninteractive
@@ -82,6 +83,9 @@ for PORT in $REVERSE_PROXY_OPEN_TCP_PORTS; do
     # line 5 is chosen as it will be the REJECT rule line. We want to place our new rules BEFORE the reject rule
     sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport "$PORT" -j ACCEPT
 done
+
+echo "Opening TCP port: $FORWARD_PROXY_PORT for Forward Proxy"
+sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport "$FORWARD_PROXY_PORT" -j ACCEPT
 
 sudo netfilter-persistent save
 
@@ -220,7 +224,7 @@ sudo apt-get install -y tinyproxy
 
 # Configure Tinyproxy to allow your internal VCN subnet (adjust 10.0.0.0/16 if your VCN CIDR is different)
 sudo sed -i "s/^Port $FORWARD_PROXY_PORT/Port $FORWARD_PROXY_PORT/" /etc/tinyproxy/tinyproxy.conf
-echo "Allow 10.0.0.0/16" | sudo tee -a /etc/tinyproxy/tinyproxy.conf
+echo "Allow $VCN_CIDR_BLOCK" | sudo tee -a /etc/tinyproxy/tinyproxy.conf
 
 sudo systemctl restart tinyproxy
 sudo systemctl enable tinyproxy
