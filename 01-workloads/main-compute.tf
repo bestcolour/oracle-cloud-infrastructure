@@ -68,6 +68,32 @@ resource "oci_vault_secret" "headscale_vm_ssh_key_secret" {
   depends_on = [ tls_private_key.headscale_vm_ssh_key ]
 }
 
+# ===== Game Server Instance - ssh key pair =========
+variable "gameserver_vm_ssh_key_secret_name" {
+  type        = string 
+  description = "The ocid of the main kms key provisioned in the bootstrap terraform project."
+}
+
+# 1. Generate the SSH Key Pair in memory
+resource "tls_private_key" "gameserver_vm_ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# 4. Store the Private Key as a Secret in the Vault
+resource "oci_vault_secret" "gameserver_vm_ssh_key_secret" {
+  compartment_id = oci_identity_compartment.data_arch_compartment.id
+  vault_id       = var.kms_main_vault_ocid
+  key_id         = var.kms_main_key_ocid
+  secret_name    = var.gameserver_vm_ssh_key_secret_name
+
+  secret_content {
+    content_type = "BASE64"
+    content      = base64encode(tls_private_key.gameserver_vm_ssh_key.private_key_pem)
+  }
+  depends_on = [ tls_private_key.gameserver_vm_ssh_key ]
+}
+
 
 ########################################################################################################################
 # EVERYTHING FROM HERE ONWARDS CAN BE COMMENTED OUT TO TF DESTROY/REPROVISION WITHOUT CHANGING TFVAR VALUE
@@ -386,7 +412,108 @@ resource "oci_core_instance" "headscale_vm" {
   depends_on = [ tls_private_key.headscale_vm_ssh_key, oci_core_network_security_group.private_network_security_group ]
 }
 
+# ===== Gameserver Instance =========
+# --- computing instance related Variables ---
 
+variable "gameserver_vm_name" {
+  type        = string 
+  description = "The name of the compute instance provisioned for the role of gameserver"
+}
+
+variable "gameserver_vm_memory" {
+  type        = number 
+  description = "The memory of the compute instance provisioned for the role of gameserver"
+}
+
+variable "gameserver_vm_ocpus" {
+  type        = number 
+  description = "The ocpus of the compute instance provisioned for the role of gameserver"
+}
+
+variable "gameserver_vm_source_id" {
+  type        = string 
+  description = "The image id of the os image you want your vm instance to use. Find your this value here https://docs.oracle.com/en-us/iaas/images/ > choose the image you want to use > copy the link based on your region"
+}
+
+variable "gameserver_vm_assign_public_ip" {
+  type        = bool 
+  description = "Whether the VNIC should be assigned a public IP address. Defaults to whether the subnet is public or private. If not set and the VNIC is being created in a private subnet (that is, where prohibitPublicIpOnVnic = true in the Subnet), then no public IP address is assigned. If not set and the subnet is public (prohibitPublicIpOnVnic = false), then a public IP address is assigned. If set to true and prohibitPublicIpOnVnic = true, an error is returned"
+}
+
+variable "gameserver_vm_hostname_label" {
+  type        = string 
+  description = "The hostname for the VNIC's primary private IP. Used for DNS. The value is the hostname portion of the primary private IP's fully qualified domain name (FQDN) (for example, bminstance1 in FQDN bminstance1.subnet123.vcn1.oraclevcn.com). Must be unique across all VNICs in the subnet and comply with RFC 952 and RFC 1123. The value appears in the Vnic object and also the PrivateIp object returned by ListPrivateIps and GetPrivateIp."
+}
+
+
+# --- computing core instance ---
+resource "oci_core_instance" "gameserver_vm" {
+    #Required
+    availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+    compartment_id      = oci_identity_compartment.data_arch_compartment.id
+    display_name        = var.gameserver_vm_name
+    shape               = var.free_forever_compute_shape
+
+    create_vnic_details {
+
+        #Optional
+        # assign_ipv6ip = var.instance_create_vnic_details_assign_ipv6ip
+        # assign_private_dns_record = var.instance_create_vnic_details_assign_private_dns_record
+        assign_public_ip = var.gameserver_vm_assign_public_ip
+        # defined_tags = {"Operations.CostCenter"= "42"}
+        # display_name = var.instance_create_vnic_details_display_name
+        # freeform_tags = {"Department"= "Finance"}
+        hostname_label = var.gameserver_vm_hostname_label
+        nsg_ids        = [oci_core_network_security_group.game_server_network_security_group.id]
+        # security_attributes = var.gameserver_vm_security_attributes # not using since this is outside of free forever tier
+
+        subnet_id  = oci_core_subnet.main_vcn_public_subnet.id
+    }
+
+
+    # security_attributes = var.gameserver_vm_security_attributes # not using since this is outside of free forever tier
+    # shape = var.instance_shape
+    shape_config {
+      memory_in_gbs = var.gameserver_vm_memory
+      ocpus         = var.gameserver_vm_ocpus
+    }
+    source_details {
+        #Required
+        source_id   = var.gameserver_vm_source_id
+        source_type = "image"
+
+        # #Optional
+        # boot_volume_size_in_gbs = var.instance_source_details_boot_volume_size_in_gbs
+        # boot_volume_vpus_per_gb = var.instance_source_details_boot_volume_vpus_per_gb
+        # instance_source_image_filter_details {
+        #       #Required
+        #       compartment_id = var.compartment_id
+
+        #       #Optional
+        #       defined_tags_filter = var.instance_source_details_instance_source_image_filter_details_defined_tags_filter
+        #       operating_system = var.instance_source_details_instance_source_image_filter_details_operating_system
+        #       operating_system_version = var.instance_source_details_instance_source_image_filter_details_operating_system_version
+        # }
+        # kms_key_id = oci_kms_key.test_key.id
+    }
+    metadata = {
+      ssh_authorized_keys = tls_private_key.gameserver_vm_ssh_key.public_key_openssh
+      # user_data = base64encode(
+      #   templatefile("${path.module}/main-compute-setup-gameserver.sh.tpl",
+      #   {
+      #     # your_gameserver_fqdn      = "${var.your_gameserver_subdomain_name}.${var.your_base_domain}"
+      #     # your_base_domain          = var.your_base_domain
+      #     # reverse_proxy_private_ip  = var.secure_web_gateway_static_private_ip
+      #     # forward_proxy_port        = var.forward_proxy_port
+      #   }
+      #   )
+      # )
+    }
+    preserve_boot_volume = false
+      
+
+  depends_on = [ tls_private_key.gameserver_vm_ssh_key, oci_core_network_security_group.private_network_security_group ]
+}
 
 # ===== Network Security Groups (NSG) =========
 variable "secure_web_gateway_NSG_display_name" {
@@ -424,6 +551,27 @@ resource "oci_core_network_security_group" "private_network_security_group" {
     display_name = var.private_NSG_display_name
     # freeform_tags = {"Department"= "Finance"}
 }
+
+variable "game_server_NSG_display_name" {
+  type = string
+  description = "The display name for the game server's Network Security Group resource"
+}
+
+# This network security group will be used for a public facing vm instance
+# https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_network_security_group
+resource "oci_core_network_security_group" "game_server_network_security_group" {
+    #Required
+    compartment_id = oci_identity_compartment.data_arch_compartment.id
+    vcn_id = module.main_vcn.vcn_id
+
+    #Optional
+    # defined_tags = {"Operations.CostCenter"= "42"}
+    display_name = var.game_server_NSG_display_name
+    # freeform_tags = {"Department"= "Finance"}
+}
+
+
+
 
 # ===== Network Security Groups (NSG) Rules - Secure Web Gateway's Reverse Proxy NSG <-> Private NSG =========
 
@@ -561,6 +709,60 @@ resource "oci_core_network_security_group_security_rule" "forward_proxy_from_pri
     destination_port_range {
       min = var.forward_proxy_port
       max = var.forward_proxy_port
+    }
+  }
+}
+
+
+
+# ===== Network Security Groups (NSG) Rules - Game Server =========
+
+variable "game_server_tcp_ports" {
+  type        = list(number)
+  description = "List of TCP ports to open for the game server"
+  default     = [25565] # You can add more ports here later (e.g., 8123 for Dynmap)
+}
+
+# 1. Rule for Games that uses TCP
+resource "oci_core_network_security_group_security_rule" "game_server_NSG_TCP_rule" {
+  for_each = toset([for p in var.game_server_tcp_ports : tostring(p)])
+  network_security_group_id = oci_core_network_security_group.game_server_network_security_group.id
+  direction                 = "INGRESS"
+  protocol                  = "6" # "6" is the protocol number for TCP
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+  stateless                 = false
+
+  tcp_options {
+    destination_port_range {
+      min = tonumber(each.value)
+      max = tonumber(each.value)
+    }
+  }
+}
+
+
+variable "game_server_udp_ports" {
+  type        = list(number)
+  description = "List of UDP ports to open for the game server"
+  default     = [19132]
+}
+
+# 2. Rule for Games that uses UDP
+resource "oci_core_network_security_group_security_rule" "game_server_NSG_UDP_rule" {
+  for_each = toset([for p in var.game_server_udp_ports : tostring(p)])
+
+  network_security_group_id = oci_core_network_security_group.game_server_network_security_group.id
+  direction                 = "INGRESS"
+  protocol                  = "17" # "17" is the protocol number for UDP
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+  stateless                 = false
+
+  udp_options {
+    destination_port_range {
+      min = tonumber(each.value)
+      max = tonumber(each.value)
     }
   }
 }
