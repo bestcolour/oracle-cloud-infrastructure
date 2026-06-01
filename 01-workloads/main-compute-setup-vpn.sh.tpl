@@ -3,33 +3,35 @@
 set -e
 HEADSCALE_FQDN="${your_headscale_fqdn}"
 HEADSCALE_VERSION="${your_headscale_version}"
+HEADSCALE_ARCH_TYPE="${your_headscale_arch_type}" 
 BASE_DOMAIN="${your_base_domain}"
-PROXY_IP="${reverse_proxy_private_ip}"  # <-- Injected via Terraform
-PROXY_PORT="${forward_proxy_port}"
+SECURE_WEB_GATEWAY_IP="${secure_web_gateway_private_ip}"  # <-- Injected via Terraform
+FORWARD_PROXY_PORT="${forward_proxy_port}"
+REVERSE_PROXY_PORT_TO_OPEN="${reverse_proxy_port_to_open}" # usually is 8080
 
 # --- CRITICAL ENVIRONMENT FOR NON-INTERACTIVITY ---
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
 # Route all system downloads through the reverse proxy's tinyproxy instance
-export http_proxy="http://$PROXY_IP:$PROXY_PORT"
-export https_proxy="http://$PROXY_IP:$PROXY_PORT"
-export ftp_proxy="http://$PROXY_IP:$PROXY_PORT"
+export http_proxy="http://$SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT"
+export https_proxy="http://$SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT"
+export ftp_proxy="http://$SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT"
 export no_proxy="localhost,127.0.0.1,::1" # <-- ADD THIS
 
 # --- -1. WAIT FOR TINYPROXY & CONFIGURE APT ---
 # this section was added to allow the headscale VM to run only after the secure web gateway has finished setting up the forward proxy. The reason why we dont use terraform's "depends on" to do this is because cloud-init setup runs are asynchronous in the context of Terraform provisioning. Terraform will provision the secure web gateway computing instance first but it will not wait for its cloud init script to finish before provisioning and running headscale's computing instance & cloud init script
 echo "Waiting for Secure Web Gateway (Tinyproxy) to come online..."
 # Loop until we can successfully fetch headers from the Ubuntu archive through the proxy
-until curl -x "http://$PROXY_IP:$PROXY_PORT" -I "http://archive.ubuntu.com" -m 5 -s -o /dev/null; do
-    echo "Tinyproxy at $PROXY_IP:$PROXY_PORT is not ready yet. Retrying in 15 seconds..."
+until curl -x "http://$SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT" -I "http://archive.ubuntu.com" -m 5 -s -o /dev/null; do
+    echo "Tinyproxy at $SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT is not ready yet. Retrying in 15 seconds..."
     sleep 15
 done
 echo "Tinyproxy is reachable! Proceeding with setup."
 
 # Force APT to use the proxy (since sudo drops standard environment variables)
-echo "Acquire::http::Proxy \"http://$PROXY_IP:$PROXY_PORT\";" | sudo tee /etc/apt/apt.conf.d/01proxy
-echo "Acquire::https::Proxy \"http://$PROXY_IP:$PROXY_PORT\";" | sudo tee -a /etc/apt/apt.conf.d/01proxy
+echo "Acquire::http::Proxy \"http://$SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT\";" | sudo tee /etc/apt/apt.conf.d/01proxy
+echo "Acquire::https::Proxy \"http://$SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT\";" | sudo tee -a /etc/apt/apt.conf.d/01proxy
 
 # Reusable robust Apt Lock Waiter Function
 wait_for_apt() {
@@ -50,10 +52,9 @@ sudo apt-get update -y && sudo apt-get install -y curl jq iptables-persistent na
 
 # --- 1. DOWNLOAD & INSTALL HEADSCALE ---
 echo "Fetching latest Headscale release..."
-ARCH="arm64" # Using ARM64 because your shape is VM.Standard.A1.Flex
 
-echo "Downloading Headscale v$HEADSCALE_VERSION for $ARCH..."
-curl -L -o /usr/local/bin/headscale "https://github.com/juanfont/headscale/releases/download/v$HEADSCALE_VERSION/headscale_""$HEADSCALE_VERSION""_linux_$ARCH"
+echo "Downloading Headscale v$HEADSCALE_VERSION for $HEADSCALE_ARCH_TYPE..."
+curl -L -o /usr/local/bin/headscale "https://github.com/juanfont/headscale/releases/download/v$HEADSCALE_VERSION/headscale_""$HEADSCALE_VERSION""_linux_$HEADSCALE_ARCH_TYPE"
 chmod +x /usr/local/bin/headscale
 
 # --- 2. CREATE SYSTEM USER AND DIRECTORIES ---
@@ -127,8 +128,8 @@ Type=simple
 User=headscale
 WorkingDirectory=/var/lib/headscale
 # --- INJECT PROXY VARIABLES FOR DAEMON INTERNET ROUTING ---
-Environment="HTTP_PROXY=http://$PROXY_IP:$PROXY_PORT"
-Environment="HTTPS_PROXY=http://$PROXY_IP:$PROXY_PORT"
+Environment="HTTP_PROXY=http://$SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT"
+Environment="HTTPS_PROXY=http://$SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT"
 Environment="NO_PROXY=localhost,127.0.0.1"
 ExecStart=/usr/local/bin/headscale serve
 Restart=always
@@ -150,9 +151,9 @@ sudo systemctl enable headscale
 sudo systemctl start headscale
 
 # --- 5. OS-LEVEL FIREWALL CONFIGURATION (IPTABLES) ---
-echo "Opening local OS port 8080 for Nginx Reverse Proxy traffic..."
+echo "Opening local OS port $REVERSE_PROXY_PORT_TO_OPEN for Nginx Reverse Proxy traffic..."
 # Insert rule at line 5 (ahead of Ubuntu's default REJECT rules on OCI)
-sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport 8080 -j ACCEPT
+sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport $REVERSE_PROXY_PORT_TO_OPEN -j ACCEPT
 sudo netfilter-persistent save
 
 echo "Headscale deployment completed successfully!"

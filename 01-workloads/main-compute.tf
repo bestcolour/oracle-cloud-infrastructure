@@ -10,10 +10,16 @@ variable "kms_main_key_ocid" {
   description = "The ocid of the main kms key provisioned in the bootstrap terraform project."
 }
 
-variable "free_forever_compute_shape" {
+variable "free_forever_AMD_compute_shape" {
+  type = string 
+  default = "VM.Standard.E2.1.Micro"
+  description = "The shape of the AMD compute which is free forever. Eg. VM.Standard.E2.1.Micro"
+}
+
+variable "free_forever_ARM_compute_shape" {
   type = string 
   default = "VM.Standard.A1.Flex"
-  description = "The shape of the compute which is free forever. Eg. VM.Standard.A1.Flex"
+  description = "The shape of the ARM compute which is free forever. Eg. VM.Standard.A1.Flex"
 }
 
 # # ===== Secure Web Gateway Instance - ssh key pair =========
@@ -137,7 +143,7 @@ variable "your_project_1_subdomain_name" {
 
 variable "headscale_port" {
   type        = string
-  description = "The port for the headscale backend (e.g., '10.0.1.20:8080')."
+  description = "The port for the headscale backend (e.g., '8080')."
 }
 
 variable "projects_private_ip_n_port" {
@@ -197,7 +203,7 @@ resource "oci_core_instance" "secure_web_gateway_vm" {
     availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
     compartment_id      = oci_identity_compartment.data_arch_compartment.id
     display_name        = var.secure_web_gateway_vm_name
-    shape               = var.free_forever_compute_shape
+    shape               = var.free_forever_ARM_compute_shape
 
     create_vnic_details {
 
@@ -339,6 +345,12 @@ variable "headscale_static_private_ip" {
   description = "The static private IP assigned to the Headscale VM (must be within the private subnet CIDR)."
   # Example: default = "10.0.1.10"
 }
+variable "your_headscale_arch_type" {
+  type        = string
+  description = "The string that determines the architecture type of the headscale app being installed."
+  default = "amd64"
+  # Example: "amd64" or "arm64"
+}
 
 
 # --- computing core instance ---
@@ -347,7 +359,7 @@ resource "oci_core_instance" "headscale_vm" {
     availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
     compartment_id      = oci_identity_compartment.data_arch_compartment.id
     display_name        = var.headscale_vm_name
-    shape               = var.free_forever_compute_shape
+    shape               = var.free_forever_ARM_compute_shape
 
     create_vnic_details {
 
@@ -399,9 +411,11 @@ resource "oci_core_instance" "headscale_vm" {
         {
           your_headscale_fqdn="${var.your_headscale_subdomain_name}.${var.your_base_domain}"
           your_headscale_version=var.your_headscale_version
+          your_headscale_arch_type =var.your_headscale_arch_type
           your_base_domain=var.your_base_domain
-          reverse_proxy_private_ip = var.secure_web_gateway_static_private_ip
+          secure_web_gateway_private_ip = var.secure_web_gateway_static_private_ip
           forward_proxy_port = var.forward_proxy_port
+          reverse_proxy_port_to_open = var.headscale_port
         }
         )
       )
@@ -452,7 +466,7 @@ resource "oci_core_instance" "gameserver_vm" {
     availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
     compartment_id      = oci_identity_compartment.data_arch_compartment.id
     display_name        = var.gameserver_vm_name
-    shape               = var.free_forever_compute_shape
+    shape               = var.free_forever_ARM_compute_shape
 
     create_vnic_details {
 
@@ -503,7 +517,7 @@ resource "oci_core_instance" "gameserver_vm" {
       #   {
       #     # your_gameserver_fqdn      = "${var.your_gameserver_subdomain_name}.${var.your_base_domain}"
       #     # your_base_domain          = var.your_base_domain
-      #     # reverse_proxy_private_ip  = var.secure_web_gateway_static_private_ip
+      #     # secure_web_gateway_private_ip  = var.secure_web_gateway_static_private_ip
       #     # forward_proxy_port        = var.forward_proxy_port
       #   }
       #   )
