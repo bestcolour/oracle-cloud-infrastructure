@@ -4,7 +4,7 @@ set -e
 HEADSCALE_FQDN="${your_headscale_fqdn}"
 HEADSCALE_VERSION="${your_headscale_version}"
 HEADSCALE_ARCH_TYPE="${your_headscale_arch_type}" 
-BASE_DOMAIN="${your_base_domain}"
+BASE_DOMAIN="${your_secure_web_gateway_base_domain}"
 SECURE_WEB_GATEWAY_IP="${secure_web_gateway_private_ip}"  # <-- Injected via Terraform
 FORWARD_PROXY_PORT="${forward_proxy_port}"
 REVERSE_PROXY_PORT_TO_OPEN="${reverse_proxy_port_to_open}" # usually is 8080
@@ -19,7 +19,7 @@ export https_proxy="http://$SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT"
 export ftp_proxy="http://$SECURE_WEB_GATEWAY_IP:$FORWARD_PROXY_PORT"
 export no_proxy="localhost,127.0.0.1,::1" # <-- ADD THIS
 
-# --- -1. WAIT FOR TINYPROXY & CONFIGURE APT ---
+# --- -6. WAIT FOR TINYPROXY & CONFIGURE APT ---
 # this section was added to allow the headscale VM to run only after the secure web gateway has finished setting up the forward proxy. The reason why we dont use terraform's "depends on" to do this is because cloud-init setup runs are asynchronous in the context of Terraform provisioning. Terraform will provision the secure web gateway computing instance first but it will not wait for its cloud init script to finish before provisioning and running headscale's computing instance & cloud init script
 echo "Waiting for Secure Web Gateway (Tinyproxy) to come online..."
 # Loop until we can successfully fetch headers from the Ubuntu archive through the proxy
@@ -44,11 +44,57 @@ wait_for_apt() {
     echo "Package manager is free."
 }
 
-# --- 0. PURGE NEEDRESTART & UPDATE ---
+# --- -5. PURGE NEEDRESTART & UPDATE ---
 wait_for_apt
 sudo apt-get purge -y needrestart || true
 wait_for_apt
 sudo apt-get update -y && sudo apt-get install -y curl jq iptables-persistent nano
+
+# --- -4. SYSTEM UPDATE ---
+wait_for_apt
+echo "Starting base system update..."
+sudo apt-get update -y && sudo apt-get upgrade -y
+
+# --- -3. INSTALL SECURITY UTILITIES ---
+wait_for_apt
+echo "Installing automated patching, brute-force protection, and firewall persistence..."
+sudo apt-get install -y unattended-upgrades fail2ban iptables-persistent
+
+# --- -2. CONFIGURE AUTOMATIC SECURITY PATCHING (UNATTENDED UPGRADES) ---
+echo "Enabling unattended security updates..."
+sudo debconf-set-selections <<< "unattended-upgrades unattended-upgrades/enable_auto_updates boolean true"
+sudo dpkg-reconfigure -f noninteractive unattended-upgrades
+
+if [ "$AUTO_REBOOT" = "true" ]; then
+    echo "Configuring automated maintenance reboots for kernel patches at $REBOOT_TIME..."
+    sudo sed -i "s|//Unattended-Upgrade::Automatic-Reboot \"false\";|Unattended-Upgrade::Automatic-Reboot \"true\";|" /etc/apt/apt.conf.d/50unattended-upgrades
+    sudo sed -i "s|//Unattended-Upgrade::Automatic-Reboot-Time \"02:00\";|Unattended-Upgrade::Automatic-Reboot-Time \"$REBOOT_TIME\";|" /etc/apt/apt.conf.d/50unattended-upgrades
+fi
+
+# --- -1. ORACLE-SPECIFIC STATEFUL FIREWALL HARDENING ---
+echo "Injecting explicit rules into OCI iptables chain..."
+for PORT in $SECURE_OPEN_TCP_PORTS; do
+    echo "Opening required port: $PORT"
+    # OCI Ubuntu images typically feature a catch-all REJECT rule on line 5.
+    # Injecting at position 5 inserts this rule cleanly right BEFORE the rejection block.
+    sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport "$PORT" -j ACCEPT
+done
+
+# Save rules so they persist across system restarts
+sudo netfilter-persistent save
+
+# --- 0. SSH INFRASTRUCTURE HARDENING ---
+echo "Disabling password-based authentication..."
+# Eliminates standard brute-force threats by requiring cryptographic SSH keys
+sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+sudo sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+
+echo "Restarting SSH daemon to apply changes..."
+sudo systemctl restart ssh
+
+echo "----------------------------------------------------"
+echo "Security Hardening Complete!"
+echo "----------------------------------------------------"
 
 # --- 1. DOWNLOAD & INSTALL HEADSCALE ---
 echo "Fetching latest Headscale release..."
