@@ -250,7 +250,7 @@ your_duckdns_token      = "<add your duckdns token>"
 your_duckdns_domainname = "exampleduck"
 
 # Computing Instance - Cloudinit script related Variables - Domain & backend configuration
-your_base_domain            = "exampleduck.duckdns.org" # basically your your_duckdns_domainname+".duckdns.org"
+your_secure_web_gateway_base_domain            = "exampleduck.duckdns.org" # basically your your_duckdns_domainname+".duckdns.org"
 your_headscale_subdomain_name = "headscale"
 your_project_1_subdomain_name = "wip"
 headscale_port = "8080"

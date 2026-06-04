@@ -17,7 +17,7 @@ DUCKDNS_DOMAIN_NAME="${your_duckdns_domainname}"
 MAX_RETRIES=20
 
 # --- Reverse Proxy - DOMAIN & BACKEND CONFIGURATION ---
-BASE_DOMAIN="${your_base_domain}" 
+BASE_DOMAIN="${your_secure_web_gateway_base_domain}" 
 
 # Headscale Subdomain (Routed through HTTP backend rule)
 HEADSCALE_SUBDOMAIN="${your_headscale_subdomain_name}.$BASE_DOMAIN"
