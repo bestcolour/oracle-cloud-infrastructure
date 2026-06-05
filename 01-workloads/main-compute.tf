@@ -850,38 +850,3 @@ resource "oci_core_network_security_group_security_rule" "game_server_NSG_UDP_ru
   }
 }
 
-
-
-# ----- 2. PUBLIC FACING INGRESS RULES FOR GAME SERVER's CADDY -----
-
-# Allow HTTP Ingress traffic from anywhere on the internet (Required for Certbot validation)
-resource "oci_core_network_security_group_security_rule" "game_server_caddy_http_ingress" {
-  network_security_group_id = oci_core_network_security_group.game_server_network_security_group.id
-  direction                 = "INGRESS"
-  protocol                  = "6" # TCP
-  source                    = "0.0.0.0/0"
-  source_type               = "CIDR_BLOCK"
-
-  tcp_options {
-    destination_port_range {
-      min = 80
-      max = 80
-    }
-  }
-}
-
-# Allow HTTPS Ingress traffic from anywhere on the internet
-resource "oci_core_network_security_group_security_rule" "game_server_caddy_https_ingress" {
-  network_security_group_id = oci_core_network_security_group.game_server_network_security_group.id
-  direction                 = "INGRESS"
-  protocol                  = "6" # TCP
-  source                    = "0.0.0.0/0"
-  source_type               = "CIDR_BLOCK"
-
-  tcp_options {
-    destination_port_range {
-      min = 443
-      max = 443
-    }
-  }
-}
