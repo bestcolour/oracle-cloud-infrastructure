@@ -121,6 +121,9 @@ sudo tee docker-compose.yml > /dev/null <<EOF
 networks:
   pterodactyl_nw:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 services:
   database:
@@ -149,8 +152,8 @@ services:
   panel:
     image: ghcr.io/pterodactyl/panel:latest
     restart: always
-    ports:
-      - "8080:80"
+    # ports:
+      # - "8080:80"
     links:
       - database
       - cache
@@ -261,6 +264,50 @@ done
 if [ "$RESOLVED_IP" != "$PUBLIC_IP" ]; then
     echo "WARNING: DNS propagation is taking longer than expected. SSL generation via Caddy may delay until DuckDNS refreshes."
 fi
+
+# =====================================================================
+# --- 10. PTERODACTYL WINGS INSTALLATION ---
+# =====================================================================
+echo "Staging Pterodactyl Wings environment..."
+
+# Create core configuration and container data directories
+sudo mkdir -p /etc/pterodactyl /var/lib/pterodactyl
+
+# Download the compiled Wings binary matching your ARM64 architecture
+echo "Downloading ARM64 Wings binary..."
+curl -L -o /usr/local/bin/wings "https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_arm64"
+sudo chmod u+x /usr/local/bin/wings
+
+# Construct the Systemd Service descriptor
+echo "Creating systemd unit configuration for Wings..."
+sudo tee /etc/systemd/system/wings.service > /dev/null <<EOF
+[Unit]
+Description=Pterodactyl Wings Daemon
+After=docker.service
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+User=root
+WorkingDirectory=/etc/pterodactyl
+LimitNOFILE=4096
+PIDFile=/var/run/wings/daemon.pid
+ExecStart=/usr/local/bin/wings
+Restart=always
+StartLimitInterval=180
+StartLimitBurst=30
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+# Reload systemd configuration and enable the service on boot
+sudo systemctl daemon-reload
+sudo systemctl enable wings
+
+echo "Wings setup staged successfully! Awaiting panel configuration token."
 
 echo "----------------------------------------------------"
 echo "Deployment Complete! Access panel at: https://$DUCKDNS_DOMAIN_NAME.duckdns.org"
