@@ -1,13 +1,9 @@
 services:
-  terraform:
-    image: hashicorp/terraform:1.14
-    container_name: terraform-cli
+  devops-tools:
+    build: .
+    container_name: devops-box
     volumes:
-      # Mounts your current directory to /workspace in the container
       - .:/workspace
-    working_dir: /workspace
-    # Overwrites the default entrypoint so the container doesn't 
-    # immediately exit after running 'terraform'
-    entrypoint: /bin/sh
-    stdin_open: true # Equivalent to -i
-    tty: true        # Equivalent to -t
+      - ~/.ssh:/root/.ssh:ro
+    stdin_open: true
+    tty: true

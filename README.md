@@ -21,12 +21,12 @@ This project will hold all the golden source code for setting up my own infrastr
 ---
 
 
-## How to use terraform
+## How to use terraform cli
 
-To start terraform in a container on your device, run the below code:
+To start terraform (with ansible as well) in a container on your device, run the below code:
 
 ```bash
-docker-compose run --rm terraform
+docker compose up -d --build && docker exec -it devops-box /bin/sh
 ```
 
 
