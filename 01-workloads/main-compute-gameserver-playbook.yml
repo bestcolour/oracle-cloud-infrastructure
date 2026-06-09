@@ -1,0 +1,230 @@
+---
+- name: Provision and Secure Pterodactyl Game Server Framework
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # These variables are automatically mapped from the extra-vars JSON object
+    auto_reboot: "true"
+    reboot_time: "03:00"
+
+  handlers:
+    - name: Restart SSH
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+  tasks:
+    # --------------------------------------------------------------------------
+    # 0. Connectivity Guard
+    # --------------------------------------------------------------------------
+    - name: Wait for instance cloud fabric initialization to allow SSH connections
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    # --------------------------------------------------------------------------
+    # 1. Package Manager Optimization
+    # --------------------------------------------------------------------------
+    - name: Purge needrestart to prevent interactive dialogue prompts
+      ansible.builtin.apt:
+        name: needrestart
+        state: absent
+        purge: yes
+      failed_when: false
+
+    # --------------------------------------------------------------------------
+    # 2. System Modernization & Core Utilities
+    # --------------------------------------------------------------------------
+    - name: Update repository cache and apply comprehensive system upgrades
+      ansible.builtin.apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Install baseline system administrative utilities
+      ansible.builtin.apt:
+        name:
+          - dnsutils
+          - curl
+          - nano
+          - unattended-upgrades
+          - fail2ban
+          - iptables-persistent
+        state: present
+
+    # --------------------------------------------------------------------------
+    # 3. Security Hardening & Automated Patching
+    # --------------------------------------------------------------------------
+    - name: Configure non-interactive seed for unattended security upgrades
+      ansible.builtin.debconf:
+        name: unattended-upgrades
+        question: unattended-upgrades/enable_auto_updates
+        vtype: boolean
+        value: 'true'
+
+    - name: Execute non-interactive system reconfigure for updates
+      ansible.builtin.command: dpkg-reconfigure -f noninteractive unattended-upgrades
+      changed_when: false
+
+    - name: Enable automatic kernel reboots inside apt upgrade policies
+      ansible.builtin.lineinfile:
+        path: /etc/apt/apt.conf.d/50unattended-upgrades
+        regexp: '^//Unattended-Upgrade::Automatic-Reboot '
+        line: 'Unattended-Upgrade::Automatic-Reboot "{{ auto_reboot }}";'
+
+    - name: Align target window for maintenance upgrades reboots
+      ansible.builtin.lineinfile:
+        path: /etc/apt/apt.conf.d/50unattended-upgrades
+        regexp: '^//Unattended-Upgrade::Automatic-Reboot-Time '
+        line: 'Unattended-Upgrade::Automatic-Reboot-Time "{{ reboot_time }}";'
+
+    # --------------------------------------------------------------------------
+    # 4. Oracle-Specific Stateful Firewall Hardening (Prior to catch-all reject)
+    # --------------------------------------------------------------------------
+    - name: Inject explicit stateful TCP rules before OCI catch-all drop rules
+      ansible.builtin.command: iptables -I INPUT 5 -m state --state NEW -p tcp --dport {{ item }} -j ACCEPT
+      loop: "{{ gameserver_tcp_ports_to_open }}"
+      changed_when: true
+
+    - name: Inject explicit stateful UDP rules before OCI catch-all drop rules
+      ansible.builtin.command: iptables -I INPUT 5 -m state --state NEW -p udp --dport {{ item }} -j ACCEPT
+      loop: "{{ gameserver_udp_ports_to_open }}"
+      changed_when: true
+
+    - name: Persist local runtime firewall mutations to persistent configurations
+      ansible.builtin.command: netfilter-persistent save
+      changed_when: true
+
+    # --------------------------------------------------------------------------
+    # 5. SSH Access Hardening
+    # --------------------------------------------------------------------------
+    - name: Eliminate password-based vector entry inside SSH daemon configuration
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '(?i)^#?PasswordAuthentication\s+'
+        line: 'PasswordAuthentication no'
+        state: present
+      notify: Restart SSH
+
+    # --------------------------------------------------------------------------
+    # 6. Docker Lifecycle Engine
+    # --------------------------------------------------------------------------
+    - name: Fetch and deploy official engine build directly using stable channel script
+      ansible.builtin.shell: |
+        curl -sSL https://get.docker.com/ | CHANNEL=stable bash
+      args:
+        creates: /usr/bin/docker
+
+    - name: Validate that Docker service runtime is running and enabled on boot
+      ansible.builtin.systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    # --------------------------------------------------------------------------
+    # 7. Pterodactyl Panel Infrastructure Installation
+    # --------------------------------------------------------------------------
+    - name: Structure persistent environment directories for Panel & Volumes
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /var/www/pterodactyl
+        - /srv/pterodactyl
+
+    - name: Enforce clean starting context for relational database volume paths
+      ansible.builtin.file:
+        path: /srv/pterodactyl/db
+        state: absent
+
+    - name: Re-instantiate database directory safely
+      ansible.builtin.file:
+        path: /srv/pterodactyl/db
+        state: directory
+        mode: '0755'
+
+    - name: Establish local TLS-override bypass configuration for local MariaDB client queries
+      ansible.builtin.copy:
+        dest: /srv/pterodactyl/skip-ssl.cnf
+        content: |
+          [client]
+          skip-ssl = true
+        mode: '0644'
+
+    - name: Template Docker Compose definition directly into app directory
+      ansible.builtin.template:
+        src: 01-workloads/templates/ansible-gameserver-docker-compose.yml.j2
+        dest: /var/www/pterodactyl/docker-compose.yml
+        mode: '0644'
+
+    - name: Launch Docker Compose landscape
+      ansible.builtin.command: docker compose up -d
+      args:
+        chdir: /var/www/pterodactyl
+      changed_when: true
+
+    - name: Provide brief timing buffer for complete SQL backend instantiation
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Execute migrations and database schema seeding non-interactively
+      ansible.builtin.command: docker compose exec -T panel php artisan migrate --seed --force
+      args:
+        chdir: /var/www/pterodactyl
+      changed_when: true
+
+    # --------------------------------------------------------------------------
+    # 8. Pterodactyl Wings Daemon Provisioning
+    # --------------------------------------------------------------------------
+    - name: Establish system directory nodes for daemon operations
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /etc/pterodactyl
+        - /var/lib/pterodactyl
+
+    - name: Download the native compilation package file matching the ARM64 architecture
+      ansible.builtin.get_url:
+        url: "https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_arm64"
+        dest: /usr/local/bin/wings
+        mode: '0755'
+
+    - name: Configure the explicit systemd architecture tracking descriptor for Wings
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/wings.service
+        content: |
+          [Unit]
+          Description=Pterodactyl Wings Daemon
+          After=docker.service
+          Requires=docker.service
+          PartOf=docker.service
+
+          [Service]
+          User=root
+          WorkingDirectory=/etc/pterodactyl
+          LimitNOFILE=4096
+          PIDFile=/var/run/wings/daemon.pid
+          ExecStart=/usr/local/bin/wings
+          Restart=always
+          StartLimitInterval=180
+          StartLimitBurst=30
+          RestartSec=5s
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+      notify: Reload systemd
+
+    - name: Validate that Wings service daemon state is configured to launch on system boot
+      ansible.builtin.systemd:
+        name: wings
+        enabled: yes

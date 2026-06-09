@@ -168,7 +168,6 @@ variable "your_reverse_proxy_tcp_ports" {
 variable "your_duckdns_token" {
   type        = string
   description = "The API token provided by DuckDNS for dynamic DNS updates."
-  sensitive   = true
 }
 
 variable "your_duckdns_domainname" {
@@ -699,7 +698,7 @@ variable "gameserver_vm_hostname_label" {
 variable "gameserver_duckdns_domain_name" {
   description = "The duckdns domain name. Eg. ducky.duckdns.org, 'ducky' is considered to be the value you want to assign for this variable."
   type        = string
-  sensitive = true
+  sensitive = false
 }
 
 data "oci_secrets_secretbundle" "gameserver_pterodactyl_app_key_bundle" {
@@ -762,22 +761,65 @@ resource "oci_core_instance" "gameserver_vm" {
     }
     metadata = {
       ssh_authorized_keys = tls_private_key.gameserver_vm_ssh_key.public_key_openssh
-      user_data = base64encode(
-        templatefile("${path.module}/main-compute-setup-gameserver.sh.tpl",
-        {
-          gameserver_tcp_ports_to_open = join(" ", var.game_server_tcp_ports)
-          gameserver_udp_ports_to_open = join(" ", var.game_server_udp_ports)
-          gameserver_panel_db_password = base64decode(data.oci_secrets_secretbundle.gameserver_pterodactyl_db_password_bundle.secret_bundle_content.0.content)
-          gameserver_panel_app_key       = base64decode(data.oci_secrets_secretbundle.gameserver_pterodactyl_app_key_bundle.secret_bundle_content.0.content)
-          gameserver_duckdns_domain_name = var.gameserver_duckdns_domain_name
-          duck_dns_token = var.your_duckdns_token
-        }
-        )
-      )
     }
     preserve_boot_volume = false
 
   depends_on = [ tls_private_key.gameserver_vm_ssh_key, oci_core_network_security_group.private_network_security_group, oci_vault_secret.gameserver_vm_ssh_key_secret,oci_vault_secret.gameserver_pterodactyl_app_key_secret,oci_vault_secret.gameserver_pterodactyl_db_password_secret ]
+}
+
+# Terraform-to-Ansible Handoff Resource: Automatically trigger the playbook on your local device after provision completes.
+resource "null_resource" "gameserver_vm_ansible_handoff" {
+  depends_on = [
+    oci_core_instance.gameserver_vm,
+    tls_private_key.gameserver_vm_ssh_key
+  ]
+
+  triggers = {
+    instance_id = oci_core_instance.gameserver_vm.id
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/sh", "-s"]
+
+    # Notice the standard output redirection grouped at the very end of the EOT block ( > /workspace/local-exec-debug.log 2>&1 )
+    command = <<EOT
+set -x
+echo "=== Starting Terraform Local-Exec Provisioner ==="
+echo "Target VM Public IP: ${oci_core_instance.gameserver_vm.public_ip}"
+
+# 1. Create temporary file safely
+TMP_KEY=$(mktemp /tmp/ansible_key.XXXXXXXXXX)
+echo "Created temp key file at: $TMP_KEY"
+
+# Ensure cleanup on exit
+trap 'rm -f "$TMP_KEY"; echo "Temporary SSH key securely wiped."' EXIT
+
+# 2. Write the private key safely using an env variable string assignment
+echo "${tls_private_key.gameserver_vm_ssh_key.private_key_pem}" > "$TMP_KEY"
+chmod 600 "$TMP_KEY"
+echo "SSH Private Key written and permissions restricted."
+
+# 3. Verify files exist in the Docker workspace before executing
+echo "Current working directory: \$(pwd)"
+echo "Checking for playbook file..."
+if [ -f "main-compute-gameserver-playbook.yml" ]; then
+    echo "Found main-compute-gameserver-playbook.yml"
+else
+    echo "ERROR: main-compute-gameserver-playbook.yml NOT found in active workspace!"
+    exit 1
+fi
+
+echo "Running Ansible Playbook now..."
+ansible-playbook -i '${oci_core_instance.gameserver_vm.public_ip},' \
+  --private-key="$TMP_KEY" \
+  -u ubuntu \
+  -e 'ansible_ssh_common_args="-o StrictHostKeyChecking=no"' \
+  --extra-vars '{"duck_dns_token":"${var.your_duckdns_token}","gameserver_duckdns_domain_name":"${var.your_duckdns_domainname}","gameserver_panel_app_key":"${random_id.gameserver_pterodactyl_app_key.b64_std}","gameserver_panel_db_password":"${random_password.gameserver_pterodactyl_db_password.result}","gameserver_tcp_ports_to_open":"${join(" ", var.game_server_tcp_ports)}","gameserver_udp_ports_to_open":"${join(" ", var.game_server_tcp_ports)}"}' \
+  main-compute-gameserver-playbook.yml
+
+echo "=== Ansible Playbook Finished Successfully ==="
+EOT
+  }
 }
 
 # ===== Network Security Groups (NSG) - Game Server =========
