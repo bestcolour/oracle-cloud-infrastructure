@@ -15,6 +15,28 @@ wait_for_apt() {
     echo "Package manager is free."
 }
 
+# --- 1. PURGE NEEDRESTART ---
+# Prevents interactive prompts from interrupting automated cloud-init deployments
+wait_for_apt
+echo "Removing needrestart package to ensure uninterrupted script execution..."
+sudo apt-get purge -y needrestart || true
+
+# --- 2. SYSTEM UPDATE ---
+wait_for_apt
+echo "Starting base system update..."
+sudo apt-get update -y && sudo apt-get upgrade -y
+
+# --- 2.5 INSTALL PACKAGES ---
+echo "Installing useful packages"
+sudo apt-get install -y dnsutils curl nano
+
+# --- 3. INSTALL SECURITY UTILITIES ---
+wait_for_apt
+echo "Installing automated patching, brute-force protection, and firewall persistence..."
+sudo apt-get install -y unattended-upgrades fail2ban iptables-persistent
+
+# --- 3. INSTALL ANSIBLE UTILITIES ---
+
 echo "Updating repositories and ensuring base prerequisites..."
 wait_for_apt
 apt-get update -y
@@ -27,6 +49,16 @@ apt-add-repository --yes --update ppa:ansible/ansible
 echo "Installing Ansible engine automation components..."
 wait_for_apt
 apt-get install -y ansible
+
+# --- 4. INSTALL DOCKER ---
+
+echo "Installing Docker..."
+wait_for_apt
+curl -sSL https://get.docker.com/ | CHANNEL=stable bash
+systemctl enable docker
+sudo systemctl enable --now docker
+
+
 
 # --- CONFIGURATION PATH EXTRACTION TARGETS ---
 # Swap this with your actual public repository URL paths where configuration documents reside
