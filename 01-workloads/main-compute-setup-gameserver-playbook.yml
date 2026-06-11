@@ -9,30 +9,6 @@
     auto_reboot_enabled: "{{ auto_reboot | default('true') | bool }}"
     reboot_time_val: "{{ reboot_time | default('03:00') }}"
   tasks:
-    - name: Purge needrestart package to ensure non-interactive execution
-      ansible.builtin.apt:
-        name: needrestart
-        state: absent
-        purge: true
-
-    - name: Update apt repositories and perform full system upgrade
-      ansible.builtin.apt:
-        update_cache: true
-        upgrade: dist
-        cache_valid_time: 3600
-
-    - name: Install required core utilities and security packages
-      ansible.builtin.apt:
-        name:
-          - dnsutils
-          - curl
-          - nano
-          - unattended-upgrades
-          - fail2ban
-          - iptables-persistent
-          - python3-yaml
-        state: present
-
     - name: Enable automated security upgrades via debconf
       ansible.builtin.debconf:
         name: unattended-upgrades
