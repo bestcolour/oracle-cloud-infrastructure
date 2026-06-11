@@ -98,8 +98,10 @@
       loop:
         - { path: '/var/www/pterodactyl' }
         - { path: '/srv/pterodactyl/db' }
-        - { path: '/srv/pterodactyl/caddy_data', mode: '0777' }    # Allows Caddy container to write data
-        - { path: '/srv/pterodactyl/caddy_config', mode: '0777' }  # Allows Caddy container to write config
+        - { path: '/srv/pterodactyl/caddy_data', mode: '0777' }
+        # Add this line so the find module doesn't complain about a missing directory
+        - { path: '/srv/pterodactyl/caddy_data/caddy/certificates', mode: '0755' } 
+        - { path: '/srv/pterodactyl/caddy_config', mode: '0777' }
         - { path: '/etc/pterodactyl' }
         - { path: '/var/lib/pterodactyl' }
 
@@ -140,8 +142,8 @@
         patterns: "*.crt"
       register: found_certs
       until: found_certs.matched > 0
-      retries: 6
-      delay: 10
+      retries: 30  # Increased
+      delay: 10    # 30 * 10s = 5 minutes max wait time
 
     - name: Map dynamic SSL paths to playbook variables
       ansible.builtin.set_fact:
