@@ -4,7 +4,6 @@
   connection: local
   become: true
   vars:
-    # Safely convert space-separated strings from Terraform into native lists
     gameserver_tcp_ports: "{{ gameserver_tcp_ports_to_open | default('') | split(' ') if gameserver_tcp_ports_to_open is string else gameserver_tcp_ports_to_open }}"
     gameserver_udp_ports: "{{ gameserver_udp_ports_to_open | default('') | split(' ') if gameserver_udp_ports_to_open is string else gameserver_udp_ports_to_open }}"
     auto_reboot_enabled: "{{ auto_reboot | default('true') | bool }}"
@@ -31,6 +30,7 @@
           - unattended-upgrades
           - fail2ban
           - iptables-persistent
+          - python3-yaml
         state: present
 
     - name: Enable automated security upgrades via debconf
@@ -110,6 +110,7 @@
       loop:
         - /var/www/pterodactyl
         - /srv/pterodactyl/db
+        - /srv/pterodactyl/caddy_data
         - /etc/pterodactyl
         - /var/lib/pterodactyl
 
@@ -133,14 +134,72 @@
         chdir: /var/www/pterodactyl
       changed_when: true
 
-    - name: Pause execution for relational database initialization state stability
+    - name: Pause execution for container stabilization and SSL certificate generation
       ansible.builtin.pause:
-        seconds: 15
+        seconds: 20
 
     - name: Execute panel database migration and population schemas
       ansible.builtin.command: docker compose exec -T panel php artisan migrate --seed --force
       args:
         chdir: /var/www/pterodactyl
+      changed_when: true
+
+    - name: Dynamically locate automatically generated Caddy SSL certificates (Fix 1)
+      ansible.builtin.find:
+        paths: "/srv/pterodactyl/caddy_data/caddy/certificates"
+        recurse: true
+        patterns: "*.crt"
+      register: found_certs
+      until: found_certs.matched > 0
+      retries: 6
+      delay: 10
+
+    - name: Map dynamic SSL paths to playbook variables
+      ansible.builtin.set_fact:
+        computed_ssl_cert: "{{ found_certs.files[0].path }}"
+        computed_ssl_key: "{{ found_certs.files[0].path | regex_replace('\\.crt$', '.key') }}"
+
+    - name: Verify if Wings configuration file already exists
+      ansible.builtin.stat:
+        path: /etc/pterodactyl/config.yml
+      register: wings_config_status
+
+    - name: Seed baseline configuration file if empty or missing
+      ansible.builtin.copy:
+        content: "{}"
+        dest: /etc/pterodactyl/config.yml
+        mode: '0640'
+      when: not wings_config_status.stat.exists
+
+    - name: Safely merge network custom subnets and SSL overrides into config.yml (Fix 1 & 2)
+      ansible.builtin.shell: |
+        python3 -c "
+        import yaml
+        path = '/etc/pterodactyl/config.yml'
+        with open(path, 'r') as f:
+            data = yaml.safe_load(f) or {}
+        
+        if 'api' not in data: data['api'] = {}
+        data['api']['host'] = '0.0.0.0'
+        data['api']['port'] = 8080
+        if 'ssl' not in data['api']: data['api']['ssl'] = {}
+        data['api']['ssl']['enabled'] = True
+        data['api']['ssl']['cert'] = '{{ computed_ssl_cert }}'
+        data['api']['ssl']['key'] = '{{ computed_ssl_key }}'
+        
+        if 'docker' not in data: data['docker'] = {}
+        if 'network' not in data['docker']: data['docker']['network'] = {}
+        data['docker']['network']['name'] = 'pterodactyl0'
+        data['docker']['network']['subnet'] = '172.30.0.0/16'
+        data['docker']['network']['gateway'] = '172.30.0.1'
+        
+        with open(path, 'w') as f:
+            yaml.dump(data, f, default_flow_style=False)
+        "
+      changed_when: true
+
+    - name: Prune conflicting or stale Docker networks (Fix 2)
+      ansible.builtin.command: docker network prune -f
       changed_when: true
 
     - name: Fetch and deploy ARM64 Pterodactyl Wings runtime binary
@@ -175,7 +234,7 @@
         mode: '0644'
       notify: Reload systemd
 
-    - name: Ensure Wings binary execution daemon is running on startup
+    - name: Ensure Wings binary execution daemon is active and running
       ansible.builtin.systemd:
         name: wings
         enabled: true
@@ -190,3 +249,8 @@
     - name: Reload systemd
       ansible.builtin.systemd:
         daemon_reload: true
+
+    - name: Restart wings
+      ansible.builtin.systemd:
+        name: wings
+        state: restarted
