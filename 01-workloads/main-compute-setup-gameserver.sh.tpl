@@ -119,10 +119,20 @@ fi
 # --- 6. CONFIGURATION PATH EXTRACTION TARGETS ---
 # Swap this with your actual public repository URL paths where configuration documents reside
 GITHUB_RAW_BASE="${gameserver_github_raw_base_url}"
+PLAYBOOK_SUBPATH="${gameserver_github_repo_playbook_path}"
+PTERODACTLY_DOCKER_COMPOSE_SUBPATH="${gameserver_github_repo_pterodactyl_docker_compose_path}"
+CUSTOM_SHELL_FIX_SUBPATH="${gameserver_github_repo_custom_shell_fix_path}" # this shell fix is ran for after configuring a new node
 
 echo "Downloading deployment playbook and Jinja2 templates directly from GitHub version control..."
-curl -sSL "$GITHUB_RAW_BASE/"${gameserver_github_repo_playbook_path}"" -o /tmp/playbook.yml
-curl -sSL "$GITHUB_RAW_BASE/"${gameserver_github_repo_pterodactyl_docker_compose_path}"" -o /tmp/docker-compose.yml.j2
+curl -sSL "$GITHUB_RAW_BASE/$PLAYBOOK_SUBPATH" -o /tmp/playbook.yml
+curl -sSL "$GITHUB_RAW_BASE/$PTERODACTLY_DOCKER_COMPOSE_SUBPATH" -o /tmp/docker-compose.yml.j2
+
+# --- ADD THIS NEW BLOCK TO DOWNLOAD YOUR FIX SCRIPT ---
+echo "Downloading custom operational quick-fix utility..."
+curl -sSL "$GITHUB_RAW_BASE/$CUSTOM_SHELL_FIX_SUBPATH" -o /usr/local/bin/apply-wings-fixes
+chmod +x /usr/local/bin/apply-wings-fixes
+# to use this fix, run 
+# sudo apply-wings-fixes
 
 echo "Injecting secret state and environment mappings into localized Ansible values context file..."
 cat <<EOF > /tmp/vars.yml

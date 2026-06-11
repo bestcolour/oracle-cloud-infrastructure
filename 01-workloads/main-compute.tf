@@ -717,6 +717,11 @@ variable "gameserver_github_repo_pterodactyl_docker_compose_path" {
   description = "The relative repository path or file name for the Jinja2 template of the Docker Compose stack (docker-compose.yml.j2) used to generate the production application containers."
 }
 
+variable "gameserver_github_repo_custom_shell_fix_path" {
+  type        = string
+  description = "The relative repository path or file name for the shell script that needs to ran after configuring a node on pterodactyl panel."
+}
+
 data "oci_secrets_secretbundle" "gameserver_pterodactyl_app_key_bundle" {
   secret_id = oci_vault_secret.gameserver_pterodactyl_app_key_secret.id
 }
