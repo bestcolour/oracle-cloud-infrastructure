@@ -132,6 +132,7 @@ auto_reboot: "true"
 reboot_time: "03:00"
 panel_db_password: "${gameserver_panel_db_password}"
 panel_app_key: "${gameserver_panel_app_key}"
+duckdns_domain_name: "${gameserver_duckdns_domain_name}"
 EOF
 
 echo "Executing localized orchestrator playbook using contextual values profile..."
