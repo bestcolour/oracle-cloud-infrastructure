@@ -118,8 +118,8 @@
         patterns: "*.crt"
       register: found_certs
       until: found_certs.matched > 0
-      retries: 30  # Increased
-      delay: 10    # 30 * 10s = 5 minutes max wait time
+      retries: 180  # Increased
+      delay: 10    # 180 * 10s = 30 minutes max wait time
 
     - name: Map dynamic SSL paths to playbook variables
       ansible.builtin.set_fact:
