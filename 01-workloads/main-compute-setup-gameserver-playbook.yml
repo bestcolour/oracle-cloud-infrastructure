@@ -90,29 +90,18 @@
         state: present
       notify: Restart ssh
 
-    - name: Install Docker via official upstream setup script
-      ansible.builtin.shell: |
-        curl -sSL https://get.docker.com/ | CHANNEL=stable bash
-      args:
-        creates: /usr/bin/docker
-
-    - name: Ensure Docker service is enabled and active
-      ansible.builtin.systemd:
-        name: docker
-        enabled: true
-        state: started
-
     - name: Create Pterodactyl application and Wings system directories
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: "{{ item.path }}"
         state: directory
-        mode: '0755'
+        mode: "{{ item.mode | default('0755') }}"
       loop:
-        - /var/www/pterodactyl
-        - /srv/pterodactyl/db
-        - /srv/pterodactyl/caddy_data
-        - /etc/pterodactyl
-        - /var/lib/pterodactyl
+        - { path: '/var/www/pterodactyl' }
+        - { path: '/srv/pterodactyl/db' }
+        - { path: '/srv/pterodactyl/caddy_data', mode: '0777' }    # Allows Caddy container to write data
+        - { path: '/srv/pterodactyl/caddy_config', mode: '0777' }  # Allows Caddy container to write config
+        - { path: '/etc/pterodactyl' }
+        - { path: '/var/lib/pterodactyl' }
 
     - name: Deploy MariaDB database client skip-ssl override configurations
       ansible.builtin.copy:
