@@ -30,11 +30,11 @@ apt-get install -y ansible
 
 # --- CONFIGURATION PATH EXTRACTION TARGETS ---
 # Swap this with your actual public repository URL paths where configuration documents reside
-GITHUB_RAW_BASE="https://raw.githubusercontent.com/your-github-username/your-repo-name/main"
+GITHUB_RAW_BASE="${gameserver_github_raw_base_url}"
 
 echo "Downloading deployment playbook and Jinja2 templates directly from GitHub version control..."
-curl -sSL "$GITHUB_RAW_BASE/playbook.yml" -o /tmp/playbook.yml
-curl -sSL "$GITHUB_RAW_BASE/docker-compose.yml.j2" -o /tmp/docker-compose.yml.j2
+curl -sSL "$GITHUB_RAW_BASE/"${gameserver_github_repo_playbook_path}"" -o /tmp/playbook.yml
+curl -sSL "$GITHUB_RAW_BASE/"${gameserver_github_repo_pterodactyl_docker_compose_path}"" -o /tmp/docker-compose.yml.j2
 
 echo "Injecting secret state and environment mappings into localized Ansible values context file..."
 cat <<EOF > /tmp/vars.yml

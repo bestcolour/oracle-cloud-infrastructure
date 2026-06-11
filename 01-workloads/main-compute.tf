@@ -702,6 +702,21 @@ variable "gameserver_duckdns_domain_name" {
   sensitive = true
 }
 
+variable "gameserver_github_raw_base_url" {
+  type        = string
+  description = "The base URL for pulling raw files from the public GitHub repository branch where deployment configuration documents reside (e.g., https://raw.githubusercontent.com/username/repo/main)."
+}
+
+variable "gameserver_github_repo_playbook_path" {
+  type        = string
+  description = "The relative repository path or file name for the Ansible deployment playbook (playbook.yml) used to provision systems, configure firewall rules, and deploy the Pterodactyl stack."
+}
+
+variable "gameserver_github_repo_pterodactyl_docker_compose_path" {
+  type        = string
+  description = "The relative repository path or file name for the Jinja2 template of the Docker Compose stack (docker-compose.yml.j2) used to generate the production application containers."
+}
+
 data "oci_secrets_secretbundle" "gameserver_pterodactyl_app_key_bundle" {
   secret_id = oci_vault_secret.gameserver_pterodactyl_app_key_secret.id
 }
@@ -771,6 +786,9 @@ resource "oci_core_instance" "gameserver_vm" {
           gameserver_panel_app_key       = base64decode(data.oci_secrets_secretbundle.gameserver_pterodactyl_app_key_bundle.secret_bundle_content.0.content)
           gameserver_duckdns_domain_name = var.gameserver_duckdns_domain_name
           duck_dns_token = var.your_duckdns_token
+          gameserver_github_raw_base_url=var.gameserver_github_raw_base_url
+          gameserver_github_repo_playbook_path=var.gameserver_github_repo_playbook_path
+          gameserver_github_repo_pterodactyl_docker_compose_path=var.gameserver_github_repo_pterodactyl_docker_compose_path
         }
         )
       )
