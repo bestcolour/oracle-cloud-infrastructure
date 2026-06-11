@@ -1,54 +1,56 @@
 #!/bin/bash
 # Exit immediately if any command returns a non-zero status
-set -e 
-
-SECURE_OPEN_TCP_PORTS="${gameserver_tcp_ports_to_open}" 
-SECURE_OPEN_UDP_PORTS="${gameserver_udp_ports_to_open}"  # e.g., "25565 19132"
-PANEL_DB_PASSWORD="${gameserver_panel_db_password}"
-PANEL_APP_KEY="${gameserver_panel_app_key}"
-
-# --- Duck DNS ---
-DUCKDNS_DOMAIN_NAME="${gameserver_duckdns_domain_name}"
-DUCKDNS_TOKEN="${duck_dns_token}"
+set -e
 
 # --- CRITICAL ENVIRONMENT FOR NON-INTERACTIVITY ---
-export DEBIAN_FRONTEND=noninteractive 
-export NEEDRESTART_MODE=a 
+export DEBIAN_FRONTEND=noninteractive
 
 # Reusable robust Apt Lock Waiter Function
 wait_for_apt() {
     echo "Checking package manager locks..."
-    while fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock >/dev/null 2>&1 || 
-          pgrep -f "apt" >/dev/null 2>&1 || pgrep -f "dpkg" >/dev/null 2>&1; [cite: 2]
-    do [cite: 3]
+    while fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock >/dev/null 2>&1 || pgrep -f "apt" >/dev/null 2>&1 || pgrep -f "dpkg" >/dev/null 2>&1; do
         echo "The package manager is currently locked by another process. Waiting 10 seconds..."
         sleep 10
-    done [cite: 3]
+    done
     echo "Package manager is free."
-} 
+}
 
-# --- 1. PURGE NEEDRESTART ---
-# Prevents interactive prompts from interrupting automated cloud-init deployments
-wait_for_apt 
-echo "Removing needrestart package to ensure uninterrupted script execution..."
-sudo apt-get purge -y needrestart || true [cite: 4, 5]
-
-# --- 2. UPDATE & INSTALL SOFTWARE PROPERTIES ---
+echo "Updating repositories and ensuring base prerequisites..."
 wait_for_apt
-sudo apt-get update -y
-sudo apt-get install -y software-properties-common curl git
+apt-get update -y
+apt-get install -y software-properties-common curl git
 
-# --- 3. INSTALL ANSIBLE ---
-echo "Installing Ansible..."
-sudo fallback-to-ppa-if-needed || true # Optional step if on an older Ubuntu version needing the Ansible PPA
+echo "Adding official Ansible distribution PPA..."
 wait_for_apt
-sudo apt-get install -y ansible
+apt-add-repository --yes --update ppa:ansible/ansible
 
-# --- 4. EXECUTE PLAYBOOK ---
-echo "Launching local Ansible provisioning..."
-# Option A: If cloning from a git repository:
-# git clone https://github.com/your-organization/pterodactyl-ansible.git /tmp/ansible
-# ansible-playbook /tmp/ansible/site.yml --extra-vars "db_password=${gameserver_panel_db_password} app_key=${gameserver_panel_app_key} ..."
+echo "Installing Ansible engine automation components..."
+wait_for_apt
+apt-get install -y ansible
 
-# Option B: If baking the playbook dynamically into a local file via Terraform:
-# ansible-playbook /tmp/local-site.yml
+# --- CONFIGURATION PATH EXTRACTION TARGETS ---
+# Swap this with your actual public repository URL paths where configuration documents reside
+GITHUB_RAW_BASE="https://raw.githubusercontent.com/your-github-username/your-repo-name/main"
+
+echo "Downloading deployment playbook and Jinja2 templates directly from GitHub version control..."
+curl -sSL "$GITHUB_RAW_BASE/playbook.yml" -o /tmp/playbook.yml
+curl -sSL "$GITHUB_RAW_BASE/docker-compose.yml.j2" -o /tmp/docker-compose.yml.j2
+
+echo "Injecting secret state and environment mappings into localized Ansible values context file..."
+cat <<EOF > /tmp/vars.yml
+gameserver_tcp_ports_to_open: "${gameserver_tcp_ports_to_open}"
+gameserver_udp_ports_to_open: "${gameserver_udp_ports_to_open}"
+auto_reboot: "true"
+reboot_time: "03:00"
+panel_db_password: "${gameserver_panel_db_password}"
+panel_app_key: "${gameserver_panel_app_key}"
+duckdns_domain_name: "${gameserver_duckdns_domain_name}"
+duckdns_token: "${duck_dns_token}"
+EOF
+
+echo "Executing localized orchestrator playbook using contextual values profile..."
+ansible-playbook /tmp/playbook.yml -e @/tmp/vars.yml
+
+echo "----------------------------------------------------"
+echo "Ansible Local Configuration Tasks Succeeded!"
+echo "----------------------------------------------------"

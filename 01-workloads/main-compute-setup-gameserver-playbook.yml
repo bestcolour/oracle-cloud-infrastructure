@@ -1,0 +1,192 @@
+---
+- name: Configure Game Server and Deploy Pterodactyl Stack
+  hosts: localhost
+  connection: local
+  become: true
+  vars:
+    # Safely convert space-separated strings from Terraform into native lists
+    gameserver_tcp_ports: "{{ gameserver_tcp_ports_to_open | default('') | split(' ') if gameserver_tcp_ports_to_open is string else gameserver_tcp_ports_to_open }}"
+    gameserver_udp_ports: "{{ gameserver_udp_ports_to_open | default('') | split(' ') if gameserver_udp_ports_to_open is string else gameserver_udp_ports_to_open }}"
+    auto_reboot_enabled: "{{ auto_reboot | default('true') | bool }}"
+    reboot_time_val: "{{ reboot_time | default('03:00') }}"
+  tasks:
+    - name: Purge needrestart package to ensure non-interactive execution
+      ansible.builtin.apt:
+        name: needrestart
+        state: absent
+        purge: true
+
+    - name: Update apt repositories and perform full system upgrade
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Install required core utilities and security packages
+      ansible.builtin.apt:
+        name:
+          - dnsutils
+          - curl
+          - nano
+          - unattended-upgrades
+          - fail2ban
+          - iptables-persistent
+        state: present
+
+    - name: Enable automated security upgrades via debconf
+      ansible.builtin.debconf:
+        name: unattended-upgrades
+        question: unattended-upgrades/enable_auto_updates
+        value: "true"
+        vtype: boolean
+
+    - name: Run non-interactive reconfigure for unattended-upgrades
+      ansible.builtin.command: dpkg-reconfigure -f noninteractive unattended-upgrades
+      changed_when: false
+
+    - name: Configure automated system reboots for security patches
+      ansible.builtin.lineinfile:
+        path: /etc/apt/apt.conf.d/50unattended-upgrades
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '(?i)//\s*Unattended-Upgrade::Automatic-Reboot\s+"false";', line: 'Unattended-Upgrade::Automatic-Reboot "true";' }
+        - { regexp: '(?i)//\s*Unattended-Upgrade::Automatic-Reboot-Time\s+"\d{2}:\d{2}";', line: 'Unattended-Upgrade::Automatic-Reboot-Time "{{ reboot_time_val }}";' }
+      when: auto_reboot_enabled
+
+    - name: Inject explicit TCP rules into OCI iptables chain (Position 5)
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: insert
+        rule_num: 5
+        protocol: tcp
+        destination_port: "{{ item }}"
+        ctstate: NEW
+        jump: ACCEPT
+      loop: "{{ gameserver_tcp_ports }}"
+      when: item | trim != ''
+
+    - name: Inject explicit UDP rules into OCI iptables chain (Position 5)
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: insert
+        rule_num: 5
+        protocol: udp
+        destination_port: "{{ item }}"
+        ctstate: NEW
+        jump: ACCEPT
+      loop: "{{ gameserver_udp_ports }}"
+      when: item | trim != ''
+
+    - name: Save iptables firewall configuration to persist on boot
+      ansible.builtin.command: netfilter-persistent save
+      changed_when: true
+
+    - name: Harden SSH infrastructure by disabling password authentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '(?i)^#?PasswordAuthentication\s+(yes|no)'
+        line: 'PasswordAuthentication no'
+        state: present
+      notify: Restart ssh
+
+    - name: Install Docker via official upstream setup script
+      ansible.builtin.shell: |
+        curl -sSL https://get.docker.com/ | CHANNEL=stable bash
+      args:
+        creates: /usr/bin/docker
+
+    - name: Ensure Docker service is enabled and active
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create Pterodactyl application and Wings system directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /var/www/pterodactyl
+        - /srv/pterodactyl/db
+        - /etc/pterodactyl
+        - /var/lib/pterodactyl
+
+    - name: Deploy MariaDB database client skip-ssl override configurations
+      ansible.builtin.copy:
+        dest: /srv/pterodactyl/skip-ssl.cnf
+        content: |
+          [client]
+          skip-ssl = true
+        mode: '0644'
+
+    - name: Generate production docker-compose.yml file from pulled Jinja2 template
+      ansible.builtin.template:
+        src: /tmp/docker-compose.yml.j2
+        dest: /var/www/pterodactyl/docker-compose.yml
+        mode: '0644'
+
+    - name: Initialize Docker Compose application stack containers
+      ansible.builtin.command: docker compose up -d
+      args:
+        chdir: /var/www/pterodactyl
+      changed_when: true
+
+    - name: Pause execution for relational database initialization state stability
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Execute panel database migration and population schemas
+      ansible.builtin.command: docker compose exec -T panel php artisan migrate --seed --force
+      args:
+        chdir: /var/www/pterodactyl
+      changed_when: true
+
+    - name: Fetch and deploy ARM64 Pterodactyl Wings runtime binary
+      ansible.builtin.get_url:
+        url: "https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_arm64"
+        dest: /usr/local/bin/wings
+        mode: '0755'
+
+    - name: Configure Wings engine Systemd service daemon descriptor
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/wings.service
+        content: |
+          [Unit]
+          Description=Pterodactyl Wings Daemon
+          After=docker.service
+          Requires=docker.service
+          PartOf=docker.service
+
+          [Service]
+          User=root
+          WorkingDirectory=/etc/pterodactyl
+          LimitNOFILE=4096
+          PIDFile=/var/run/wings/daemon.pid
+          ExecStart=/usr/local/bin/wings
+          Restart=always
+          StartLimitInterval=180
+          StartLimitBurst=30
+          RestartSec=5s
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+      notify: Reload systemd
+
+    - name: Ensure Wings binary execution daemon is running on startup
+      ansible.builtin.systemd:
+        name: wings
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Restart ssh
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
