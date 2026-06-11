@@ -794,6 +794,7 @@ resource "oci_core_instance" "gameserver_vm" {
           gameserver_github_raw_base_url=var.gameserver_github_raw_base_url
           gameserver_github_repo_playbook_path=var.gameserver_github_repo_playbook_path
           gameserver_github_repo_pterodactyl_docker_compose_path=var.gameserver_github_repo_pterodactyl_docker_compose_path
+          gameserver_github_repo_custom_shell_fix_path=var.gameserver_github_repo_custom_shell_fix_path
         }
         )
       )
