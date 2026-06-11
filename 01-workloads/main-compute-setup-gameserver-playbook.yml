@@ -66,6 +66,57 @@
         state: present
       notify: Restart ssh
 
+    - name: Fetch public IP from Oracle Instance Metadata Service (IMDSv2)
+      ansible.builtin.uri:
+        url: http://192.168.168.168/opc/v2/instance/publicIp
+        headers:
+          Authorization: "Bearer Oracle"
+        return_content: true
+      register: oci_metadata_ip
+      ignore_errors: true
+
+    - name: Fallback to external resolver if OCI metadata endpoint is blank
+      ansible.builtin.uri:
+        url: https://ifconfig.me
+        return_content: true
+      register: external_ip
+      until: external_ip.status == 200 and external_ip.content | trim != ''
+      retries: 12
+      delay: 10
+      when: oci_metadata_ip.failed or oci_metadata_ip.content == 'null' or oci_metadata_ip.content | trim == ''
+
+    - name: Set public IP fact based on available data
+      ansible.builtin.set_fact:
+        public_ip: "{{ oci_metadata_ip.content if (oci_metadata_ip.success and oci_metadata_ip.content != 'null' and oci_metadata_ip.content | trim != '') else external_ip.content | trim }}"
+
+    - name: Assert that a valid Public IP was discovered
+      ansible.builtin.assert:
+        that:
+          - public_ip is defined
+          - public_ip | length > 0
+        fail_msg: "ERROR: Network timed out before a valid Public IP could be detected. Aborting setup."
+
+    - name: Update DuckDNS with the detected Public IP
+      ansible.builtin.uri:
+        url: "https://www.duckdns.org/update?domains={{ duckdns_domain_name }}&token={{ duckdns_token }}&ip={{ public_ip }}"
+        return_content: true
+      register: duckdns_update
+      ignore_errors: true
+
+    - name: Verify DNS propagation against Google DNS
+      ansible.builtin.command: "dig +short @8.8.8.8 {{ duckdns_domain_name }}.duckdns.org"
+      register: dns_lookup
+      until: dns_lookup.stdout_lines | last == public_ip
+      retries: 6
+      delay: 15
+      changed_when: false
+      ignore_errors: true
+
+    - name: Warn user if DNS propagation is delayed
+      ansible.builtin.debug:
+        msg: "WARNING: DNS propagation is taking longer than expected. SSL generation via Caddy may delay until DuckDNS refreshes."
+      when: dns_lookup.failed or (dns_lookup.stdout_lines | default([]) | last) != public_ip
+
     - name: Create Pterodactyl application and Wings system directories
       ansible.builtin.file:
         path: "{{ item.path }}"
