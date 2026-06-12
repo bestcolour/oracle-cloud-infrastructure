@@ -10,7 +10,7 @@ This repo holds all the golden source code for setting up my own app annd cloud 
 |-------|-----|------------|
 | 00-bootstrap | Provision underlying security and terraform state sync infrastructure used for all other projects. | DONE   |
 | 01-headscale  | Provision and setup a private Headscale VPN Control Server compute instance behind a public dual proxy compute instance. | DONE |
-| 02-pterodactyl  | Provision and setup Pterodactyl Panel (frontend) & Pterodactyl Wings (backend) on the same public compute instance for maximum game server capabilities. | DONE |
+| 02-pterodactyl  | Provision and setup Pterodactyl Panel (frontend) & Pterodactyl Wings (backend) on the same public compute instance for maximum game server capabilities. | WIP (still need to setup backup cronjob) |
 
 
 ---
@@ -632,12 +632,161 @@ The Pterodactyl project mainly consists of two components.
 
 ### 6.4.2 - 02-pterodactyl - Configuration Example
 
+
+
 ### 6.4.3 - 02-pterodactyl - Setup Guide
+
+1) Make sure you create a fresh DuckDNS sub domain to reduce any likelihood of the DuckDNS failing the Certbot challenge.
+
+2) Create a `backend-config.tfvars` file with guidance of the [00bootstrap Usage](#623-projects---00-bootstrap---usage) section and place them in the folder `01-headscale`.
+
+3) Create a `terraform.tfvars` file with guidance of the [01 Headscale Configuration Example](#622-projects---01-headscale---configuration-example) section and place them in the folder `01-headscale`.
+
+4) Start up terraform
+```bash
+docker-compose run --rm terraform
+```
+
+5) Go to 01-headscale directory
+```
+cd 02-pterodactyl
+```
+
+6) Run terraform (but with backend config) to setup the backend with the bootstrap object storage and provision the resources
+
+```
+terraform init -backend-config="backend-config.tfvars"
+```
+
+7) Run these terraform commands:
+
+To do a quick check on your terraform provisions, run
+```
+terraform plan
+```
+
+If everything looks good, run
+```
+terraform apply
+```
+
+8) Now wait for approximately 15 to 30 minutes for the entire automated process to finish. If you want to check on the status of the cloud resources go to [this section](#644---02-pterodactyl---troubleshooting-or-checking-status)
+
+
+Once done, keep the resulting `terraform.tfvars` file safe (e.g., in a secure password manager or encrypted file storage).
+
 
 ### 6.4.4 - 02-pterodactyl - Troubleshooting Or Checking Status
 
+
+#### 6.3.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Panel Operational
+
+To check if the Pterodactyl Panel server is up and operational, simply go to your browser and type in `<gameserver_duckdns_domain_name>.duckdns.org`. If you see a login page and a Pterodactyl logo, then the Pterodactyl Panel deployment was successful.
+
+---
+
+#### 6.3.4.2 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Setup Progress
+
+To check if the Pterodactyl app is still setting up or is running into any issues, we can SSH into the compute instance.
+
+We will first need to retrieve its SSH key. To do so, we can follow the [guide on how to get SSH keys from Oracle Cloud Secrets](#613-projects---general-instructions---retrieving-ssh-key-to-the-compute-instance).
+
+Log into your Oracle Cloud Account and at the search bar near the top of the page, search for "Instances".
+
+Under the "Services" section, click on the word "Instances" located in the same row as "Compute".
+
+In this new page, find the "Applied filters" option and select the compartment name that you provisioned your Headscale related compute instances in (or you can just keep trying each filter to find out which is the correct one).
+
+From there, find your Secure Web Gateway compute instance's public ip address.
+
+Then open a new terminal and run the command
+```
+ssh ubuntu@<pterodactyl_compute_instance_ip_address> -i <the_path_of_your_retrieved_ssh_key>
+```
+
+Once inside, you can check the details of the Cloud-Init script by running
+
+```
+cloud-init status
+```
+
+Doing so will give you one of 3 responses
+```
+error
+running
+done
+```
+
+If you wish to further investigate the cloud-init and Ansible setup process, run this command:
+```
+tail -f /var/log/cloud-init-output.log -n 50
+```
+
+---
+
+
+
 ### 6.4.5 - 02-pterodactyl - Usage Guide
 
+1) Once the provisioned compute instance has been setup, we will need to create an admin account for management purposes.
+
+SSH into the Pterodactyl instance by following [the "Check Pterodactyl Setup Progress Guide"](#6342-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-setup-progress).
+
+Once inside your server, navigate to the directory where your game server setup and `docker-compose.yml` file live. 
+
+```
+cd /var/www/pterodactyl
+```
+
+Find out what is the pterodactyl panel docker container name by running
+```
+sudo docker ps
+```
+
+You should a table like this. Find pterodactyl panel's name
+```
+CONTAINER ID   IMAGE                               COMMAND                  CREATED          STATUS          PORTS                                                                                             NAMES
+...
+
+f31714f1ef38   ghcr.io/pterodactyl/panel:v1.12.4   "/bin/ash .github/do…"   20 minutes ago   Up 20 minutes   80/tcp, 443/tcp, 9000/tcp                                                                         pterodactyl-panel-1
+
+...
+```
+
+Often times, it will be `pterodactyl-panel-1`
+
+Then, execute the interactive account creation wizard inside the running Pterodactyl Docker container by running:
+
+```
+sudo docker exec -it pterodactyl-panel-1 php artisan p:user:make
+```
+
+Follow the instructions and sign up your admin account. 
+
+2) Once done, visit `https://YOUR_DUCKDNS_DOMAIN.duckdns.org` and log into your account
+
+3) Once inside, click "Locations" on the left panel bar and create a new location
+4) Next, click on "Nodes" on the left panel bar and create a new node
+	1) Key in the FDQN with `<YOUR_DUCKDNS_DOMAIN_NAME>.duckdns.org`
+	2) Define your resources base on your compute instances' CPU and RAM
+	3) Make sure to use SSL connection (do not use HTTP only)
+5) Once done, you will be on the Node's IP Address page. Do the following:
+	1) Go to your terminal that SSH into Pteradactyl and run the command `hostname -I | awk '{print $1}'`
+	2) Grab the output value and place it into the "Create IP Address" section
+	3) Then set the name as "Internal IP"
+	4) Press create/allocate IP Address
+6) Next, on the horizontal bar at near the top of the page, click on "Configuration"
+	1) Click "Generate Token"
+	2) Copy that line of code
+	3) Go to your terminal that SSH into Pteradactyl, paste the line the code and press enter
+	4) Press "y" to confirm (if necessary)
+	5) Once done, run the following command `sudo apply-wings-fixes`
+7) And now you're done! You have successfully done to following:
+	1) Created a Location (US, UK, etc) that a Node (basically another word for "machine") will be categorised under
+	2) Created a Node that has the Pterodactyl Wings server program running and linked it to the Pterodactyl Panel app
+	3) Allocated the Node's internal IP Address in the Pterodactyl Panel app so that servers running on the node could use it.
+	4) Configured the Pterodactyl Wings machine so that it can communicate with the Pterodactyl Panel app and could spin up game servers
+8) You can now create your own servers for Minecraft, Rust, etc!
 
 
 ---
@@ -646,12 +795,6 @@ The Pterodactyl project mainly consists of two components.
 
 
 
-
-
-
-
-
----
 
 
 
