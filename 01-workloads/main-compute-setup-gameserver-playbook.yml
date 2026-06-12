@@ -4,6 +4,7 @@
   connection: local
   become: true
   vars:
+    # Process some variables passed in from the playbook command
     gameserver_tcp_ports: "{{ gameserver_tcp_ports_to_open | default('') | split(' ') if gameserver_tcp_ports_to_open is string else gameserver_tcp_ports_to_open }}"
     gameserver_udp_ports: "{{ gameserver_udp_ports_to_open | default('') | split(' ') if gameserver_udp_ports_to_open is string else gameserver_udp_ports_to_open }}"
     auto_reboot_enabled: "{{ auto_reboot | default('true') | bool }}"
@@ -75,7 +76,6 @@
         - { path: '/var/www/pterodactyl' }
         - { path: '/srv/pterodactyl/db' }
         - { path: '/srv/pterodactyl/caddy_data', mode: '0777' }
-        # Add this line so the find module doesn't complain about a missing directory
         - { path: '/srv/pterodactyl/caddy_data/caddy/certificates', mode: '0755' } 
         - { path: '/srv/pterodactyl/caddy_config', mode: '0777' }
         - { path: '/etc/pterodactyl' }
@@ -109,64 +109,6 @@
       ansible.builtin.command: docker compose exec -T panel php artisan migrate --seed --force
       args:
         chdir: /var/www/pterodactyl
-      changed_when: true
-
-    - name: Dynamically locate automatically generated Caddy SSL certificates (Fix 1)
-      ansible.builtin.find:
-        paths: "/srv/pterodactyl/caddy_data/caddy/certificates"
-        recurse: true
-        patterns: "*.crt"
-      register: found_certs
-      until: found_certs.matched > 0
-      retries: 180  # Increased
-      delay: 10    # 180 * 10s = 30 minutes max wait time
-
-    - name: Map dynamic SSL paths to playbook variables
-      ansible.builtin.set_fact:
-        computed_ssl_cert: "{{ found_certs.files[0].path }}"
-        computed_ssl_key: "{{ found_certs.files[0].path | regex_replace('\\.crt$', '.key') }}"
-
-    - name: Verify if Wings configuration file already exists
-      ansible.builtin.stat:
-        path: /etc/pterodactyl/config.yml
-      register: wings_config_status
-
-    - name: Seed baseline configuration file if empty or missing
-      ansible.builtin.copy:
-        content: "{}"
-        dest: /etc/pterodactyl/config.yml
-        mode: '0640'
-      when: not wings_config_status.stat.exists
-
-    - name: Safely merge network custom subnets and SSL overrides into config.yml (Fix 1 & 2)
-      ansible.builtin.shell: |
-        python3 -c "
-        import yaml
-        path = '/etc/pterodactyl/config.yml'
-        with open(path, 'r') as f:
-            data = yaml.safe_load(f) or {}
-        
-        if 'api' not in data: data['api'] = {}
-        data['api']['host'] = '0.0.0.0'
-        data['api']['port'] = 8080
-        if 'ssl' not in data['api']: data['api']['ssl'] = {}
-        data['api']['ssl']['enabled'] = True
-        data['api']['ssl']['cert'] = '{{ computed_ssl_cert }}'
-        data['api']['ssl']['key'] = '{{ computed_ssl_key }}'
-        
-        if 'docker' not in data: data['docker'] = {}
-        if 'network' not in data['docker']: data['docker']['network'] = {}
-        data['docker']['network']['name'] = 'pterodactyl0'
-        data['docker']['network']['subnet'] = '172.30.0.0/16'
-        data['docker']['network']['gateway'] = '172.30.0.1'
-        
-        with open(path, 'w') as f:
-            yaml.dump(data, f, default_flow_style=False)
-        "
-      changed_when: true
-
-    - name: Prune conflicting or stale Docker networks (Fix 2)
-      ansible.builtin.command: docker network prune -f
       changed_when: true
 
     - name: Fetch and deploy ARM64 Pterodactyl Wings runtime binary
