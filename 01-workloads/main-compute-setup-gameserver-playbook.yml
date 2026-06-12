@@ -113,7 +113,7 @@
 
     - name: Fetch and deploy ARM64 Pterodactyl Wings runtime binary
       ansible.builtin.get_url:
-        url: "https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_arm64"
+        url: "https://github.com/pterodactyl/wings/releases/download/v1.12.3/wings_linux_arm64"
         dest: /usr/local/bin/wings
         mode: '0755'
 
