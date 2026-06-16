@@ -112,12 +112,6 @@ variable "your_duckdns_token" {
   sensitive   = true
 }
 
-variable "your_duckdns_domainname" {
-  type        = string
-  description = "The subdomain part of your DuckDNS configuration (just the name, excluding '.duckdns.org')."
-}
-
-
 
 # ===== Gameserver Instance =========
 # --- computing instance related Variables ---
@@ -257,7 +251,7 @@ resource "oci_core_instance" "gameserver_vm" {
     }
     preserve_boot_volume = false
 
-  depends_on = [ tls_private_key.gameserver_vm_ssh_key, oci_core_network_security_group.private_network_security_group, oci_vault_secret.gameserver_vm_ssh_key_secret,oci_vault_secret.gameserver_pterodactyl_app_key_secret,oci_vault_secret.gameserver_pterodactyl_db_password_secret ]
+  depends_on = [ tls_private_key.gameserver_vm_ssh_key,  oci_vault_secret.gameserver_vm_ssh_key_secret,oci_vault_secret.gameserver_pterodactyl_app_key_secret,oci_vault_secret.gameserver_pterodactyl_db_password_secret ]
 }
 
 # ===== Network Security Groups (NSG) - Game Server =========
