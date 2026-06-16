@@ -222,6 +222,69 @@ private_key_path = "/workspace/.oci/oci_api_key.pem"
 # Infrastructure Region
 region           = "us-ashburn-1"
 
+key               = "path/that/the/tfstate_file/will/be/saved/in" # for example, if the project you want to use this for is 01-headscale, use a value like "01headscale/backend/tf_state"
+workspace_key_prefix = "envs/"
+# kms_key_id        = "ocid1.key.oc1.iad.xxxxxxxxxxxxxx"
+# auth              = "APIKey"
+# config_file_profile = "DEFAULT"
+
+```
+
+Then, initialise that Terraform project with 
+```
+terraform init -backend-config="backend-config.tfvars"
+```
+
+
+---
+---
+
+## 6.3 Projects - 01-headscale
+
+### 6.3.1 Projects - 01-headscale - Description
+
+The Headscale project mainly consists of two components. 
+
+1) Secure Web Gateway - A compute instance that runs in a public subnet with a public IP address. This will be responsible for directing external traffic into a private subnet containing private compute instances.
+2) Headscale Control Server - A compute instance that runs in the private subnet with a static private IP address. This will run the VPN control server software to securely exchange the IP addresses of registered devices.
+
+---
+
+### 6.3.2 Projects - 01-headscale - Configuration Example
+
+Below is the configuration example for the 01-headscale project.
+Values that you must change are:
+1) tenancy_ocid
+2) user_ocid
+3) fingerprint
+4) private_key_path
+5) region
+6) second_root_compartment_ocid
+7) kms_main_vault_ocid
+8) kms_main_key_ocid
+9) your_duckdns_token
+10) your_duckdns_domainname
+11) your_secure_web_gateway_base_domain
+12) your_cert_email
+
+- 1-5 can be retrieved by following [this guide](#615-projects---general-instructions---finding-values-of-oci-provider-terraform-variables)
+- 6-8 will require you to log into your Oracle Cloud account and search for it (Tenancy Explorer & Key Management).
+- 9-11 would be from your DuckDNS account
+- 12 would be your own email that you are comfortable with getting server certificate renewal messages about (in the unlikely event that the automatic renewal process fails)
+
+
+```
+# Tenancy and User Information
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaaxexample"
+user_ocid        = "ocid1.user.oc1..aaaaaaaayexample"
+
+# Authentication
+fingerprint      = "20:3b:97:13:55:1c:..."
+private_key_path = "/workspace/.oci/oci_api_key.pem" # Set as the volume mounted path within Docker 
+
+# Infrastructure Region
+region           = "us-ashburn-1"
+
 # Compartments
 second_root_compartment_ocid ="ocid1.compartment.oc1..aaaaaaaaxexample"
 
