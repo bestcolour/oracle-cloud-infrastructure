@@ -182,6 +182,11 @@ variable "gameserver_backup_cron_expression" {
   description = "The schedule that will determine when and how frequent the backup script will run. Use this for easy expression generation https://crontab.guru/"
 }
 
+variable "gameserver_rclone_remote_name" {
+  type        = string
+  description = "The rclone remote name which you will have to later manually type into after the compute instance's setup is done (one time setup). This setup process will then require you to type in your cloud storage account credentials."
+}
+
 data "oci_secrets_secretbundle" "gameserver_pterodactyl_app_key_bundle" {
   secret_id = oci_vault_secret.gameserver_pterodactyl_app_key_secret.id
 }
@@ -257,6 +262,7 @@ resource "oci_core_instance" "gameserver_vm" {
           gameserver_github_repo_custom_shell_fix_path=var.gameserver_github_repo_custom_shell_fix_path
           gameserver_github_repo_backup_script_path=var.gameserver_github_repo_backup_script_path
           gameserver_backup_cron_expression=var.gameserver_backup_cron_expression
+          gameserver_rclone_remote_name=var.gameserver_rclone_remote_name
         }
         )
       )
