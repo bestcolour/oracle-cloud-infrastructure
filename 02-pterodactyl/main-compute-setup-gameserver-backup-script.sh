@@ -10,7 +10,7 @@ echo "Starting Pterodactyl backup sequence..."
 echo "Dumping MariaDB database..."
 cd /var/www/pterodactyl
 # Safely extract the plaintext password directly from the docker-compose file on the host
-DB_PASSWORD=$(grep 'MYSQL_PASSWORD:' /var/www/pterodactyl/docker-compose.yml | sed -e 's/.*MYSQL_PASSWORD: //Text' -e 's/"//g' -e "s/'//g")
+DB_PASSWORD=$(grep 'MYSQL_PASSWORD:' /var/www/pterodactyl/docker-compose.yml | sed -e 's/.*MYSQL_PASSWORD: //' -e 's/"//g' -e "s/'//g")
 
 # Run the dump using the host-extracted password variable
 sudo docker compose exec -T database mariadb-dump -u pterodactyl -p"$DB_PASSWORD" panel > /srv/pterodactyl/panel_db_backup.sql
