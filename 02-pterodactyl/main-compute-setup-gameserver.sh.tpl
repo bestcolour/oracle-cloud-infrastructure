@@ -138,8 +138,6 @@ echo "Injecting secret state and environment mappings into localized Ansible val
 cat <<EOF > /tmp/vars.yml
 gameserver_tcp_ports_to_open: "${gameserver_tcp_ports_to_open}"
 gameserver_udp_ports_to_open: "${gameserver_udp_ports_to_open}"
-auto_reboot: "true"
-reboot_time: "03:00"
 panel_db_password: "${gameserver_panel_db_password}"
 panel_app_key: "${gameserver_panel_app_key}"
 duckdns_domain_name: "${gameserver_duckdns_domain_name}"
