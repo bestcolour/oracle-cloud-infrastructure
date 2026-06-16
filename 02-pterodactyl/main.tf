@@ -58,7 +58,7 @@ resource "oci_identity_compartment" "data_arch_compartment" {
     # Required
     compartment_id = var.second_root_compartment_ocid
     description = "This compartment holds the cloud resources that are provisioned for the main cloud architecture"
-    name = "data-arch-compartment"
+    name = "02-pterodactyl"
     enable_delete = true
 }
 
