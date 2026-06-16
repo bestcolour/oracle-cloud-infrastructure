@@ -172,6 +172,16 @@ variable "gameserver_github_repo_custom_shell_fix_path" {
   description = "The relative repository path or file name for the shell script that needs to ran after configuring a node on pterodactyl panel."
 }
 
+variable "gameserver_github_repo_backup_script_path" {
+  type        = string
+  description = "The relative repository path or file name for the shell script that will be used to run for backing up pterodactyl panel (this means user accounts, locations, nodes and servers data) and wings data files (this means the actual game server's data files eg. Minecraft worlds)."
+}
+
+variable "gameserver_backup_cron_expression" {
+  type        = string
+  description = "The schedule that will determine when and how frequent the backup script will run. Use this for easy expression generation https://crontab.guru/"
+}
+
 data "oci_secrets_secretbundle" "gameserver_pterodactyl_app_key_bundle" {
   secret_id = oci_vault_secret.gameserver_pterodactyl_app_key_secret.id
 }
@@ -245,6 +255,8 @@ resource "oci_core_instance" "gameserver_vm" {
           gameserver_github_repo_playbook_path=var.gameserver_github_repo_playbook_path
           gameserver_github_repo_pterodactyl_docker_compose_path=var.gameserver_github_repo_pterodactyl_docker_compose_path
           gameserver_github_repo_custom_shell_fix_path=var.gameserver_github_repo_custom_shell_fix_path
+          gameserver_github_repo_backup_script_path=var.gameserver_github_repo_backup_script_path
+          gameserver_backup_cron_expression=var.gameserver_backup_cron_expression
         }
         )
       )

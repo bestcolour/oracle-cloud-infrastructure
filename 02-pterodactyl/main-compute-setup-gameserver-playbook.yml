@@ -75,6 +75,7 @@
         - { path: '/srv/pterodactyl/caddy_config', mode: '0777' }
         - { path: '/etc/pterodactyl' }
         - { path: '/var/lib/pterodactyl' }
+        - { path: '/etc/rclone', mode: '0755' } # used for backups
 
     - name: Deploy MariaDB database client skip-ssl override configurations
       ansible.builtin.copy:
@@ -143,6 +144,18 @@
         name: wings
         enabled: true
         state: started
+
+    - name: Schedule Pterodactyl backup automated cron job
+      ansible.builtin.cron:
+        name: "Pterodactyl Cloud Backup"
+        minute: "{{ backup_cron_expression.split(' ')[0] | default('0') }}"
+        hour: "{{ backup_cron_expression.split(' ')[1] | default('3') }}"
+        day: "{{ backup_cron_expression.split(' ')[2] | default('*') }}"
+        month: "{{ backup_cron_expression.split(' ')[3] | default('*') }}"
+        weekday: "{{ backup_cron_expression.split(' ')[4] | default('*') }}"
+        user: root
+        job: "/usr/local/bin/pterodactyl-backup >> /var/log/pterodactyl_backup.log 2>&1"
+        state: present
 
   handlers:
     - name: Restart ssh
