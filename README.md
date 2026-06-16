@@ -1,102 +1,180 @@
 # oracle-cloud-infrastructure
-This project will hold all the golden source code for setting up my own infrastructure
+
+
+# 1. Introduction
+
+## 1.1 Introduction - Project Title: Personal Oracle Cloud Infrastructure Projects
+This repo holds all the golden source code for setting up my own app annd cloud infrastructure projects on Oracle Cloud.
+
+| Project Folder  | Purpose | Status |
+|-------|-----|------------|
+| 00-bootstrap | Provision underlying security and terraform state sync infrastructure used for all other projects. | DONE   |
+| 01-headscale  | Provision and setup a private Headscale VPN Control Server compute instance behind a public dual proxy compute instance. | DONE |
+| 02-pterodactyl  | Provision and setup Pterodactyl Panel (frontend) & Pterodactyl Wings (backend) on the same public compute instance for maximum game server capabilities. | WIP (still need to setup backup cronjob) |
+
+
+---
+---
+---
+
+# 2. Table of Contents
+   - Quick navigation to major sections
 
 ---
 ---
 ---
 
 
-# Architecture Explanation
 
-## Architecture Diagram
+
+
+
+# 3 Architecture Overview
+
+## 3.1 Architecture Overview - Architecture Diagram
 ![](https://raw.githubusercontent.com/bestcolour/site/refs/heads/master/assets/image/IT_Automation-Oracle_Cloud/Current%20Architecture-Oracle%20Cloud%20Resources.drawio.png)
 
 [Read more](https://bestcolour.github.io/site/projects/IT-automation-info/#oracle-cloud-personal-architecture)
 
 ---
 ---
+
+## 3.2 Architecture Overview - Key Components 
+
+- 00-bootstrap (foundational resources)
+- 01-headscale (core infrastructure for setting up a secure Headscale VPN control server)
+- 02-pterodactyl  (core infrastructure for setting up a Game Hosting & Management Server - Pterodactyl Panel frontend server and a Pterodactyl Wings backend server)
+
+
+---
 ---
 
-# Setup & Instruction to Use
+
+## 3.3 Architecture Overview - Technologies Used
+  - Terraform
+  - Shell Scripts
+  - Oracle Cloud Infrastructure (OCI)
+  - Docker & Docker Compose
+  - Cloud Init
+  - Ansible
+
+---
+---
+
+## 3.4 Architecture Overview - Design Philosophy
+00-bootstrap was initialised first to ensure that all preceding cloud infrastructure can be secured using Key Management System (KMS) Vault, KMS Key and KMS Secrets along with a Object Storage (also secured with the before mentioned vault) to centralise the project's Terraform State file thus allowing multiple devices to work on the same Oracle Cloud Infrastructure project.
+
+
+---
+---
+---
+
+# 4 Project Structure 
+
+## 4.1 Project Structure - Folder Organization Explanation
+
+00-bootstrap/ — Foundation setup (KMS vault, state storage, compartments)
+01-headscale/ — Headscale VPN deployment
+02-pterodactyl/ — Game server management (Pterodactyl panel)
+
+
+---
+---
+---
+
+# 5 General Prerequisites & Requirements
+
+1) A "Pay as you go" or "Free Forever Tier" Oracle Cloud Infrastructure Account (Projects here are always within the limits of "Free Forever Tier" unless explicitly mentioned)
+2) Docker Engine
+3) Basic Knowledge on SSH
+4) Basic Knowledge on Terraform
+5) Basic Knowledge on Cloud-Init
+6) [A free DuckDNS Account](https://www.duckdns.org/)
+
+---
+---
 ---
 
 
-## How to use terraform
+# 6 Projects
 
-To start terraform in a container on your device, run the below code:
+## 6.1 Projects - General Instructions
+
+### 6.1.1 Projects - General Instructions - How to use terraform
+
+To start terraform in a container on your device, open a terminal in the git repository project's root and run the below code:
 
 ```bash
 docker-compose run --rm terraform
 ```
 
+Then, change directory to your desired project and proceed with terraforming.
 
----
-
-## General Folder Explanation
-
-There are 2 folders in this repository, namely 00-bootstrap and 01-workloads. Both of them are integral to the provisioning for the oracle cloud architecture. We will talk more about the things to cover in the next few sections
-
-### 00-bootstrap
-Run the tf files in this folder first. They lay the foundation of the entire cloud architecture by provisioning a kms vault, a kms master key (with additional resources to help rotate the key) and an object storage to store the terraform state file as a backend (with additional resources to delete versions of the terraform state file over an interval to prevent exceeding storage limit by the free forever tier).
-
-Create a terraform.tfvars file with guidance of the [bootstrap example config](#tfvars-example-config-file---00-bootstrap) section and place that file in the folder `00-bootstrap`
-
-Start up terraform
+Eg.
 ```bash
-docker-compose run --rm terraform
-```
-
-Go to 00-bootstrap directory
-```
 cd 00-bootstrap
 ```
 
-Run terraform normally to provision the resources
+---
 
-```
+
+### 6.1.2 Projects - General Instructions - Verify if Oracle Cloud Provider Works
+
+To check if your project is connected correctly to Oracle Cloud, simply change directory to your project of choice and run:
+
+Once inside:
+
+```bash
 terraform init
 terraform plan
-terraform apply
 ```
 
-Once done, keep the resulting `terraform.tfstate` and `terraform.tfvars` files safe (e.g., in a secure password manager or a private Git repo with restricted access), as this manages your management layer.
-
-### 01-workloads
-
-This is where the main oracle cloud architecture resources will be provisioned. Run the tf files here only after finished 00-bootstrap's run. It will contain resources mentioned in [the architecture diagram](#architecture-diagram).
-
-The tfstate file of this project will be uploaded to an object storage bucket provisioned by 00-bootstrap's run. This is done to securely 'sync' the terraform state file accross multiple devices and reduce the need for manual syncing across multiple devices. 
-
-
-Create a `terraform.tfvars` and a `backend-config.tfvars` file with guidance of the [workloads example config](#tfvars-example-config-file---01-workloads) section and place them in the folder `01-workloads`.
-
-Start up terraform
-```bash
-docker-compose run --rm terraform
-```
-
-Go to 00-bootstrap directory
-```
-cd 00-bootstrap
-```
-
-Run terraform (but with backend config) to setup the backend with the bootstrap object storage and provision the resources
-
-```
-terraform init -backend-config="backend-config.tfvars"
-terraform plan
-terraform apply
-```
-
-Once done, keep the resulting `terraform.tfstate` and `terraform.tfvars` files safe (e.g., in a secure password manager or a private Git repo with restricted access).
-
+You should see regions and other outputs being listed in the console. If you see it, it means that your oracle cloud is properly connected to terraform.
 
 ---
 
+### 6.1.3 Projects - General Instructions - Retrieving SSH key to the compute instance
 
-## tfvars example config file - oci provider tfvars
+If you need to access a compute instance provisioned, you could retrieve the SSH key needed for access using the method below:
 
-First set of credentials to find are the credentials to setup the oci provider. The oci provider code can be found in multiple tf files hence this set of credentials is repeated in multiple places.
+**Setup**
+
+To do so, you need a .oci folder which contains:
+1) 'config' file that contains:
+```
+[DEFAULT]
+user=ocid1.user.oc1..
+fingerprint=
+tenancy=ocid1.tenancy.oc1..
+region=
+key_file=/oracle/.oci/oci_api_key.pem
+```
+
+2) A 'oci_api_key.pem' file that lets you access your oracle account using Command Line Interface (CLI) (which you should already have if you have setup the terraform project above)
+
+**Command To Call**
+
+We will use oci.yml (located in the root of the git repo) to run an oci container and retrieve the ssh key. This will be the command we will be running:
+```
+docker compose -f oci.yml run --rm oci-cli "oci secrets secret-bundle get-secret-bundle-by-name --secret-name '<YOUR_SECRET_NAME>' --vault-id <YOUR_VAULT_OCID> --query 'data.\"secret-bundle-content\".content' --raw-output | base64 -d > my_secret.pem"
+```
+
+---
+
+### 6.1.4 Projects - General Instructions - SSH to a private VM located within the private subnet
+To SSH into any of the private VMs located within the private subnet, we can use the secure web gateway computing instance as a Bastion and just SSH from it.
+
+Here is the how the ssh command line will look like:
+```
+ssh -o ProxyCommand="ssh -i /path/to/bastion_key.pem -W %h:%p ubuntu@<bastion_public_ip>" -i /path/to/headscale_key.pem ubuntu@<headscale_private_ip>
+```
+
+---
+---
+
+### 6.1.5 Projects - General Instructions - Finding Values Of OCI Provider Terraform Variables
+
+These are usually the first set of credentials to find in any project as it is commonly required.
 
 ```
 # Tenancy and User Information
@@ -115,7 +193,7 @@ To find these identifiers in the Oracle Cloud Infrastructure (OCI) console, you 
 
 Here is the step-by-step guide for each:
 
-### 1. Tenancy OCID
+#### 6.1.5.1 Projects - General Instructions - Finding Values Of OCI Provider Terraform Variables - Tenancy OCID
 
 The Tenancy OCID is the unique identifier for your entire cloud account.
 
@@ -123,7 +201,9 @@ The Tenancy OCID is the unique identifier for your entire cloud account.
 * **Action:** Click on **Tenancy: [Your_Tenancy_Name]**.
 * **The ID:** Under the **Tenancy Information** tab, look for **OCID**. Click **Copy**.
 
-### 2. User OCID
+---
+
+#### 6.1.5.2 Projects - General Instructions - Finding Values Of OCI Provider Terraform Variables - User OCID
 
 This is the identifier for your specific user account.
 
@@ -131,7 +211,9 @@ This is the identifier for your specific user account.
 * **Action:** Select **User Settings** (or click on your username).
 * **The ID:** Under **User Information**, you will see your **OCID**. Click **Copy**.
 
-### 3. Fingerprint & Private Key Path
+---
+
+#### 6.1.5.3 Projects - General Instructions - Finding Values Of OCI Provider Terraform Variables - Fingerprint & Private Key Path
 
 The fingerprint is generated when you create an API Key pair.
 
@@ -143,7 +225,9 @@ The fingerprint is generated when you create an API Key pair.
 * **The ID:** A pop-up will appear showing your **Fingerprint** (a series of hex pairs). It also provides a helpful configuration snippet you can copy.
 * **Path:** Your `private_key_path` in Terraform is simply the local path where you just saved that `.pem` file.
 
-### 4. Region
+---
+
+#### 6.1.5.4 Projects - General Instructions - Finding Values Of OCI Provider Terraform Variables - Region
 
 The region is the physical location of your data center.
 
@@ -153,11 +237,27 @@ The region is the physical location of your data center.
     * Common identifiers: `us-ashburn-1`, `uk-london-1`, `eu-frankfurt-1`.
     * You can see the full list by clicking the region name and selecting **Manage Regions**.
 
----
+
 ---
 ---
 
-## tfvars example config file - 00-bootstrap
+
+## 6.2 Projects - 00-bootstrap
+### 6.2.1 Projects - 00-bootstrap - Description
+
+This project's `.tf` needs to be applied first before any other projects'. They lay the foundation of the entire cloud architecture by provisioning a KMS vault, a KMS master key (with additional resources to help rotate the key) and an object storage to store the terraform state file as a backend (with additional resources to delete versions of the terraform state file over an interval to prevent exceeding storage limit by the free forever tier).
+
+To get this project up and running, you need to:
+1) Create and define your configuration files
+2) Run the Terraform commands required to make use of the code and defined configurations
+
+---
+
+### 6.2.2 Projects - 00-bootstrap - Setup Guide
+
+1) Create a new file called `terraform.tfvars` in the same directory as the folder `00-bootstrap`.
+
+2) Use the below example of how the configuration file will look like for 00-bootstrap's terraform files. We will explore how to find some of these values in the next step.
 ```
 # Tenancy and User Information
 tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaaxexample"
@@ -175,7 +275,7 @@ second_root_compartment_name = "my-second-root"
 bootstrap_compartment_name= "my-bootstrap-compartment"
 
 # === Bucket For Syncing Terraform State ====
-tf_state_bucket_name = "my-bucket"
+tf_state_bucket_name = "my-tf-state-bucket"
 tf_state_bucket_access_type = "NoPublicAccess"
 tf_state_bucket_auto_tiering = "Disabled"
 tf_state_bucket_object_events_enabled=false
@@ -198,20 +298,39 @@ key_auto_key_rotation_details_rotation_interval_in_days = 90
 key_desired_state = "ENABLED"
 ```
 
+3) To find the values, look at [Finding Values Of OCI Provider Terraform Variables](#615-projects---general-instructions---finding-values-of-oci-provider-terraform-variables). The rest of the values can be left as default.
+
+4) After filling in the values and changing them to your liking, it time to provision the cloud resources using the configurations and Terraform code defined.
+
+Start up terraform
+```bash
+docker-compose run --rm terraform
+```
+
+Go to 00-bootstrap directory
+```
+cd 00-bootstrap
+```
+
+Run terraform these commands one after the other to provision the resources.
+
+```
+terraform init
+terraform plan
+terraform apply
+```
+
+Once done, keep the resulting `terraform.tfstate` and `terraform.tfvars` files safe (e.g., in a secure password manager or an encrypted file storage), as this manages your management layer.
+
 ---
----
----
 
-## tfvars example config file - 01-workloads
+### 6.2.3 Projects - 00-bootstrap - Usage
 
-There will be two tfvars file to be created in `01-workloads`:
-1) `terraform.tfvars`
-2) `backend-config.tfvars`
+To tell any other new Terraform projects to use the Object Storage provisioned here as a centralised Terraform State holder, create a file `backend-config.tfvars` with the example configuration below and place it in the project's folder (eg. the folders `01-headscale` or `02-pterodactyl`)
 
-
-`terraform.tfvars`:
 ```hcl
-# Tenancy and User Information
+bucket="tf-state-anchor-bucket"
+namespace         = "mynamespace_look_for_me_in_oracle_cloud_webpage"
 tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaaxexample"
 user_ocid        = "ocid1.user.oc1..aaaaaaaayexample"
 
@@ -289,12 +408,12 @@ region           = "us-ashburn-1"
 second_root_compartment_ocid ="ocid1.compartment.oc1..aaaaaaaaxexample"
 
 # kms resources
-kms_main_vault_ocid = "ocid1.vault.oc1.us-ashburn-1..example"
-kms_main_key_ocid = "ocid1.key.oc1.us-ashburn-1..example"
+kms_main_vault_ocid = "ocid1.vault.oc1.us-ashburn-1.example"
+kms_main_key_ocid = "ocid1.key.oc1.us-ashburn-1.example"
 
 # VCN
-vcn_name = "vcn-1"
-vcn_dns_label = "ohnoooo"
+vcn_name = "02-headscale-vcn-1"
+vcn_dns_label = "h02vcn1"
 vcn_cidr_blocks = ["10.0.0.0/16"]
 main_vcn_private_subnet_dns_label = "private"
 main_vcn_private_subnet_cidr_block ="10.0.1.0/24"
@@ -302,39 +421,50 @@ main_vcn_public_subnet_dns_label = "public"
 main_vcn_public_subnet_cidr_block="10.0.0.0/24"
 
 # Computing Instance
-free_forever_compute_shape = "VM.Standard.A1.Flex"
-
+free_forever_ARM_compute_shape = "VM.Standard.A1.Flex"
+free_forever_AMD_compute_shape = "VM.Standard.E2.1.Micro" # currently this shape is out of stock. Hence I will not recommend trying to provision it in my current region
 
 # Computing Instance - Cloudinit script related Variables - Network configuration
 your_reverse_proxy_tcp_ports = ["80", "443"]
 
 # Computing Instance - Cloudinit script related Variables - DuckDNS configuration
-your_duckdns_token      = "<add your duckdns token>"
-your_duckdns_domainname = "exampleduck"
+your_duckdns_token      = "insert_duckdns_token_from_duckdns_page"
+your_duckdns_domainname = "insert_duckdns_domainname_from_duckdns_page"
 
 # Computing Instance - Cloudinit script related Variables - Domain & backend configuration
-your_secure_web_gateway_base_domain            = "exampleduck.duckdns.org" # basically your your_duckdns_domainname+".duckdns.org"
+your_secure_web_gateway_base_domain            = "insert_full_duckdns_domain_from_duckdns_page" # basically your your_duckdns_domainname+".duckdns.org"
 your_headscale_subdomain_name = "headscale"
 your_project_1_subdomain_name = "wip"
 headscale_port = "8080"
-projects_private_ip_n_port  = "10.0.1.20:8443"# still not correct value
+projects_private_ip_n_port  = "10.0.1.20:8443" # serves as an example
 your_headscale_version = "0.28.0"
-your_cert_email="johndoe@gmail.com"
+your_headscale_arch_type = "arm64"
+your_cert_email="insert_your_email_for_certbot" # this is for emergency contact for when the things break or SSL certificates fail to automatically renew.
 
 # Computing Instance - Secure Web Gateway
-secure_web_gateway_vm_ssh_key_secret_name = "my-secure-web-gateway-secret" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
-secure_web_gateway_vm_name       = "my-secure-web-gateway-vm-name"
-secure_web_gateway_vm_memory     = 6
+secure_web_gateway_vm_ssh_key_secret_name = "02-headscale-secure-web-gateway-ssh" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
+secure_web_gateway_vm_name       = "02-headscale-secure-web-gateway"
+secure_web_gateway_vm_memory     = 2
 secure_web_gateway_vm_ocpus      = 1
-secure_web_gateway_vm_source_id  = "example" # Find your this value here https://docs.oracle.com/en-us/iaas/images/ > choose the image you want to use > copy the link based on your region
+secure_web_gateway_vm_source_id  = "ocid1.image.oc1.ap-singapore-1.aaaaaaaaovl4wfgvifzemo53rqy4dbotsx2xsus7y6j374urnxfrjhijkfqq"
 secure_web_gateway_vm_assign_public_ip = false
-secure_web_gateway_vm_hostname_label = "mysecurewebgateway"
-secure_web_gateway_vm_ip_display_name = "my-secure-web-gateway-reserved-public-ip"
-secure_web_gateway_static_private_ip = "10.0.0.10"
+secure_web_gateway_vm_hostname_label = "02headscalesecurewebgateway"
+secure_web_gateway_vm_ip_display_name = "02-headscale-secure-web-gateway-reserved-public-ip"
+secure_web_gateway_static_private_ip = "10.0.0.10" # private ips in the public subnet has "0" as the third digit
 
-# Computing Instance - Network Security Group
-secure_web_gateway_NSG_display_name = "my-secure-web-gateway-NSG"
-private_NSG_display_name = "private-VMs-NSG"
+# Computing Instance - Headscale VPN
+headscale_vm_ssh_key_secret_name = "02-headscale-headscale" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
+headscale_vm_name       = "02-headscale-headscale"
+headscale_vm_memory     = 1
+headscale_vm_ocpus      = 1
+headscale_vm_source_id  = "ocid1.image.oc1.ap-singapore-1.aaaaaaaaovl4wfgvifzemo53rqy4dbotsx2xsus7y6j374urnxfrjhijkfqq"
+headscale_vm_assign_public_ip = false
+headscale_vm_hostname_label = "02headscaleheadscale"
+headscale_static_private_ip = "10.0.1.10" # private ips in the public subnet has "1" as the third digit
+
+# Computing Instance - Network Security Group - VPN & Secure Web Gateway
+secure_web_gateway_NSG_display_name = "02-headscale-secure-web-gateway-NSG"
+private_NSG_display_name = "02-headscale-private-VMs-NSG"
 reverse_proxy_forwarding_rules = {
     "headscale" = {
       backend_port = 8080
@@ -345,94 +475,329 @@ reverse_proxy_forwarding_rules = {
   # }
   }
 forward_proxy_port=8888
-
-
-# Computing Instance - Headscale VPN
-headscale_vm_ssh_key_secret_name = "my-headscale-secret" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
-headscale_vm_name       = "my-headscale-vm-name"
-headscale_vm_memory     = 6
-headscale_vm_ocpus      = 1
-headscale_vm_source_id  = "example" # Find your this value here https://docs.oracle.com/en-us/iaas/images/ > choose the image you want to use > copy the link based on your region
-headscale_vm_assign_public_ip = false
-headscale_vm_hostname_label = "myheadscale"
-headscale_static_private_ip = "10.0.1.10"
 ```
-
-
-`backend-config.tfvars`
-```hcl
-bucket="tf-state-anchor-bucket"
-namespace         = "mynamespace_look_for_me_in_oracle_cloud_webpage"
-tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaaxexample"
-user_ocid        = "ocid1.user.oc1..aaaaaaaayexample"
-
-# Authentication
-fingerprint      = "20:3b:97:13:55:1c:..."
-private_key_path = #TO DO, SET THIS PATH TO THE VOLUME MOUNTED PATH WITHIN DOCKER COMPOSE eg. "/workspace/.oci/oci_api_key.pem"
-
-# Infrastructure Region
-region           = "us-ashburn-1"
-
-key               = "this/is/the/path/that/the/tfstate_file/will/be/saved/in"
-workspace_key_prefix = "envs/"
-# kms_key_id        = "ocid1.key.oc1.iad.xxxxxxxxxxxxxx"
-# auth              = "APIKey"
-# config_file_profile = "DEFAULT"
-
-```
-
 
 
 ---
 
+### 6.3.3 Projects - 01-headscale - Setup Guide
 
+1) Make sure you create a fresh DuckDNS sub domain to reduce any likelihood of the DuckDNS failing the Certbot challenge.
 
+2) Create a `backend-config.tfvars` file with guidance of the [00bootstrap Usage](#623-projects---00-bootstrap---usage) section and place them in the folder `01-headscale`.
 
----
+3) Create a `terraform.tfvars` file with guidance of the [01 Headscale Configuration Example](#622-projects---01-headscale---configuration-example) section and place them in the folder `01-headscale`.
 
-## Verify if Oracle Cloud Provider Works
-
-Once inside:
-
+4) Start up terraform
 ```bash
-terraform init
+docker-compose run --rm terraform
+```
+
+5) Go to 01-headscale directory
+```
+cd 01-headscale
+```
+
+6) Run terraform (but with backend config) to setup the backend with the bootstrap object storage and provision the resources
+
+```
+terraform init -backend-config="backend-config.tfvars"
+```
+
+7) Run these terraform commands:
+
+To do a quick check on your terraform provisions, run
+```
 terraform plan
 ```
 
-You should see regions and other outputs being listed in the console. If you see it, it means that your oracle cloud is properly connected to terraform.
+If everything looks good, run
+```
+terraform apply
+```
+
+8) Now wait for approximately 15 to 30 minutes for the entire automated process to finish. If you want to check on the status of the cloud resources go to [this section](#624-projects---01-headscale---troubleshooting-or-checking-status)
+
+Once done, keep the resulting `terraform.tfvars` file safe (e.g., in a secure password manager or encrypted file storage).
+
+---
+
+### 6.3.4 Projects - 01-headscale - Troubleshooting Or Checking Status
+
+#### 6.3.4.1 Projects - 01-headscale - Troubleshooting Or Checking Status - Check Headscale Control Server Operational
+
+To check if the Headscale control server is up and operational, simply go to your browser and type in `headscale.<your_duckdns_subdomain_name>.duckdns.org/windows`. If you see a headscale logo and the page with text describing the steps for "Windows configuration", then the deployment was successful.
+
+---
+
+#### 6.3.4.2 Projects - 01-headscale - Troubleshooting Or Checking Status - Check Secure Web Gateway Compute Instance Setup Progress
+
+To check if the Secure Web Gateway is still setting up or is running into any issues, we can SSH into the compute instance acting as the Secure Web Gateway.
+
+We will first need to retrieve its SSH key. To do so, we can follow the [guide on how to get SSH keys from Oracle Cloud Secrets](#613-projects---general-instructions---retrieving-ssh-key-to-the-compute-instance).
+
+Log into your Oracle Cloud Account and at the search bar near the top of the page, search for "Instances".
+
+Under the "Services" section, click on the word "Instances" located in the same row as "Compute".
+
+In this new page, find the "Applied filters" option and select the compartment name that you provisioned your Headscale related compute instances in (or you can just keep trying each filter to find out which is the correct one).
+
+From there, find your Secure Web Gateway compute instance's public ip address.
+
+Then open a new terminal and run the command
+```
+ssh ubuntu@<secure_web_gateway_compute_instance_ip_address> -i <the_path_of_your_retrieved_ssh_key>
+```
+
+Once inside, you can check the details of the Cloud-Init script by running
+
+```
+cloud-init status
+```
+
+Doing so will give you one of 3 responses
+```
+error
+running
+done
+```
+
+If you wish to further investigate the setup process, run this command:
+```
+tail -f /var/log/cloud-init-output.log -n 50
+```
+
+---
+
+#### 6.3.4.3 Projects - 01-headscale - Troubleshooting Or Checking Status - Check Headscale Compute Instance Setup Progress
+
+To check if the Headscale control server is still setting up or is running into any issues, we can SSH into its compute instance.
+
+We will first need to retrieve both the Secure Web Gateway and Headscale computes' SSH keys. To do so, we can follow the [guide on how to get SSH keys from Oracle Cloud Secrets](#613-projects---general-instructions---retrieving-ssh-key-to-the-compute-instance).
+
+Log into your Oracle Cloud Account and at the search bar near the top of the page, search for "Instances".
+
+Under the "Services" section, click on the word "Instances" located in the same row as "Compute".
+
+In this new page, find the "Applied filters" option and select the compartment name that you provisioned your Headscale related compute instances in (or you can just keep trying each filter to find out which is the correct one).
+
+From there, find your Secure Web Gateway compute instance's public ip address and Headscale compute instance's private ip address (or you can refer to your `terraform.tfvars` file and look for `headscale_static_private_ip`).
+
+Next, follow [the guide accessing a compute instance using SSH via a Bastion Host](#614-projects---general-instructions---ssh-to-a-private-vm-located-within-the-private-subnet).
+
+Once inside, you can check the details of the Cloud-Init script by running
+
+```
+cloud-init status
+```
+
+Doing so will give you one of 3 responses
+```
+error
+running
+done
+```
+
+If you wish to further investigate the setup process, run this command:
+```
+tail -f /var/log/cloud-init-output.log -n 50
+```
 
 
-## Retrieving ssh key to the compute instance
-To setup, you need the following:
-A .oci folder which contains:
-1) 'config' file that contains:
-```
-[DEFAULT]
-user=ocid1.user.oc1..
-fingerprint=
-tenancy=ocid1.tenancy.oc1..
-region=
-key_file=/oracle/.oci/oci_api_key.pem
-```
-2) A 'oci_api_key.pem' file that lets you access your oracle account using the cli (which you should already have if you have setup the terraform project above)
+---
 
-We will use oci.yml to run an oci container and retrieve the ssh key. This will be the command we will be running:
+### 6.3.5 Projects - 01-headscale - Usage Guide
+
+
+1) To start using the Headscale VPN Control server, you need to get access to the compute instance running this control server.
+
+Follow [this guide](#6243-projects---01-headscale---troubleshooting-or-checking-status---check-headscale-compute-instance-setup-progress)
+
+2) Once inside use the commands created by the official [headscale team](https://headscale.net/stable/usage/getting-started/).
+
+
+---
+---
+---
+
+## 6.4 Projects - 02-pterodactyl
+
+### 6.4.1 - 02-pterodactyl - Description
+
+The Pterodactyl project mainly consists of two components. 
+
+1) Pterodactyl Panel Docker Compose Stack - A Docker Compose stack that sets up the database, proxies, cache and other necessities so that the frontend called Pterodactyl Panel could run. This Docker Compose stack will run on a single compute instance running in a public subnet with a public ephemeral public IP address.
+2) Pterodactyl Wings - The backend server package needed for Pterodactyl Panel user interactions to carry out the server hosting, etc. This backend server package is usually ran on multiple separate compute instances but will run on the same compute instance as (1) to allow maximum CPU cores to utilised for running the server.
+
+
+### 6.4.2 - 02-pterodactyl - Configuration Example
+
+
+
+### 6.4.3 - 02-pterodactyl - Setup Guide
+
+1) Make sure you create a fresh DuckDNS sub domain to reduce any likelihood of the DuckDNS failing the Certbot challenge.
+
+2) Create a `backend-config.tfvars` file with guidance of the [00bootstrap Usage](#623-projects---00-bootstrap---usage) section and place them in the folder `01-headscale`.
+
+3) Create a `terraform.tfvars` file with guidance of the [01 Headscale Configuration Example](#622-projects---01-headscale---configuration-example) section and place them in the folder `01-headscale`.
+
+4) Start up terraform
+```bash
+docker-compose run --rm terraform
 ```
-docker compose -f oci.yml run --rm oci-cli "oci secrets secret-bundle get-secret-bundle-by-name --secret-name '<YOUR_SECRET_NAME>' --vault-id <YOUR_VAULT_OCID> --query 'data.\"secret-bundle-content\".content' --raw-output | base64 -d > my_secret.pem"
+
+5) Go to 01-headscale directory
 ```
+cd 02-pterodactyl
+```
+
+6) Run terraform (but with backend config) to setup the backend with the bootstrap object storage and provision the resources
+
+```
+terraform init -backend-config="backend-config.tfvars"
+```
+
+7) Run these terraform commands:
+
+To do a quick check on your terraform provisions, run
+```
+terraform plan
+```
+
+If everything looks good, run
+```
+terraform apply
+```
+
+8) Now wait for approximately 15 to 30 minutes for the entire automated process to finish. If you want to check on the status of the cloud resources go to [this section](#644---02-pterodactyl---troubleshooting-or-checking-status)
+
+
+Once done, keep the resulting `terraform.tfvars` file safe (e.g., in a secure password manager or encrypted file storage).
+
+
+### 6.4.4 - 02-pterodactyl - Troubleshooting Or Checking Status
+
+
+#### 6.3.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Panel Operational
+
+To check if the Pterodactyl Panel server is up and operational, simply go to your browser and type in `<gameserver_duckdns_domain_name>.duckdns.org`. If you see a login page and a Pterodactyl logo, then the Pterodactyl Panel deployment was successful.
+
+---
+
+#### 6.3.4.2 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Setup Progress
+
+To check if the Pterodactyl app is still setting up or is running into any issues, we can SSH into the compute instance.
+
+We will first need to retrieve its SSH key. To do so, we can follow the [guide on how to get SSH keys from Oracle Cloud Secrets](#613-projects---general-instructions---retrieving-ssh-key-to-the-compute-instance).
+
+Log into your Oracle Cloud Account and at the search bar near the top of the page, search for "Instances".
+
+Under the "Services" section, click on the word "Instances" located in the same row as "Compute".
+
+In this new page, find the "Applied filters" option and select the compartment name that you provisioned your Headscale related compute instances in (or you can just keep trying each filter to find out which is the correct one).
+
+From there, find your Secure Web Gateway compute instance's public ip address.
+
+Then open a new terminal and run the command
+```
+ssh ubuntu@<pterodactyl_compute_instance_ip_address> -i <the_path_of_your_retrieved_ssh_key>
+```
+
+Once inside, you can check the details of the Cloud-Init script by running
+
+```
+cloud-init status
+```
+
+Doing so will give you one of 3 responses
+```
+error
+running
+done
+```
+
+If you wish to further investigate the cloud-init and Ansible setup process, run this command:
+```
+tail -f /var/log/cloud-init-output.log -n 50
+```
+
+---
+
+
+
+### 6.4.5 - 02-pterodactyl - Usage Guide
+
+1) Once the provisioned compute instance has been setup, we will need to create an admin account for management purposes.
+
+SSH into the Pterodactyl instance by following [the "Check Pterodactyl Setup Progress Guide"](#6342-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-setup-progress).
+
+Once inside your server, navigate to the directory where your game server setup and `docker-compose.yml` file live. 
+
+```
+cd /var/www/pterodactyl
+```
+
+Find out what is the pterodactyl panel docker container name by running
+```
+sudo docker ps
+```
+
+You should a table like this. Find pterodactyl panel's name
+```
+CONTAINER ID   IMAGE                               COMMAND                  CREATED          STATUS          PORTS                                                                                             NAMES
+...
+
+f31714f1ef38   ghcr.io/pterodactyl/panel:v1.12.4   "/bin/ash .github/do…"   20 minutes ago   Up 20 minutes   80/tcp, 443/tcp, 9000/tcp                                                                         pterodactyl-panel-1
+
+...
+```
+
+Often times, it will be `pterodactyl-panel-1`
+
+Then, execute the interactive account creation wizard inside the running Pterodactyl Docker container by running:
+
+```
+sudo docker exec -it pterodactyl-panel-1 php artisan p:user:make
+```
+
+Follow the instructions and sign up your admin account. 
+
+2) Once done, visit `https://YOUR_DUCKDNS_DOMAIN.duckdns.org` and log into your account
+
+3) Once inside, click "Locations" on the left panel bar and create a new location
+4) Next, click on "Nodes" on the left panel bar and create a new node
+	1) Key in the FDQN with `<YOUR_DUCKDNS_DOMAIN_NAME>.duckdns.org`
+	2) Define your resources base on your compute instances' CPU and RAM
+	3) Make sure to use SSL connection (do not use HTTP only)
+5) Once done, you will be on the Node's IP Address page. Do the following:
+	1) Go to your terminal that SSH into Pteradactyl and run the command `hostname -I | awk '{print $1}'`
+	2) Grab the output value and place it into the "Create IP Address" section
+	3) Then set the name as "Internal IP"
+	4) Press create/allocate IP Address
+6) Next, on the horizontal bar at near the top of the page, click on "Configuration"
+	1) Click "Generate Token"
+	2) Copy that line of code
+	3) Go to your terminal that SSH into Pteradactyl, paste the line the code and press enter
+	4) Press "y" to confirm (if necessary)
+	5) Once done, run the following command `sudo apply-wings-fixes`
+7) And now you're done! You have successfully done to following:
+	1) Created a Location (US, UK, etc) that a Node (basically another word for "machine") will be categorised under
+	2) Created a Node that has the Pterodactyl Wings server program running and linked it to the Pterodactyl Panel app
+	3) Allocated the Node's internal IP Address in the Pterodactyl Panel app so that servers running on the node could use it.
+	4) Configured the Pterodactyl Wings machine so that it can communicate with the Pterodactyl Panel app and could spin up game servers
+8) You can now create your own servers for Minecraft, Rust, etc!
+
 
 ---
 ---
 ---
 
 
-## SSH to a private VM located within the private subnet
-To SSH into any of the private VMs located within the private subnet, we can use the secure web gateway computing instance as a Bastion and just SSH from it.
 
-Here is the how the ssh command line will look like:
-```
-ssh -o ProxyCommand="ssh -i /path/to/bastion_key.pem -W %h:%p username_bastion@<bastion_public_ip>" -i /path/to/headscale_key.pem username_headscale@<headscale_private_ip>
-```
+
+
+
 
 # Common Troubleshooting Issues
 
