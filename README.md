@@ -385,12 +385,15 @@ Values that you must change are:
 10) your_duckdns_domainname
 11) your_secure_web_gateway_base_domain
 12) your_cert_email
+13) secure_web_gateway_vm_ssh_key_secret_name
+14) headscale_vm_ssh_key_secret_name
 
 - 1-5 can be retrieved by following [this guide](#615-projects---general-instructions---finding-values-of-oci-provider-terraform-variables)
 - 6-8 will require you to log into your Oracle Cloud account and search for it (Tenancy Explorer & Key Management).
 - 9-11 would be from your DuckDNS account
 - 12 would be your own email that you are comfortable with getting server certificate renewal messages about (in the unlikely event that the automatic renewal process fails)
 
+- 13-14 would be self declared secret names used to record sensitive values generated on terraform provision.
 
 ```
 # Tenancy and User Information
@@ -412,8 +415,8 @@ kms_main_vault_ocid = "ocid1.vault.oc1.us-ashburn-1.example"
 kms_main_key_ocid = "ocid1.key.oc1.us-ashburn-1.example"
 
 # VCN
-vcn_name = "02-headscale-vcn-1"
-vcn_dns_label = "h02vcn1"
+vcn_name = "01-headscale-vcn-1"
+vcn_dns_label = "h01vcn1"
 vcn_cidr_blocks = ["10.0.0.0/16"]
 main_vcn_private_subnet_dns_label = "private"
 main_vcn_private_subnet_cidr_block ="10.0.1.0/24"
@@ -442,29 +445,29 @@ your_headscale_arch_type = "arm64"
 your_cert_email="insert_your_email_for_certbot" # this is for emergency contact for when the things break or SSL certificates fail to automatically renew.
 
 # Computing Instance - Secure Web Gateway
-secure_web_gateway_vm_ssh_key_secret_name = "02-headscale-secure-web-gateway-ssh" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
-secure_web_gateway_vm_name       = "02-headscale-secure-web-gateway"
+secure_web_gateway_vm_ssh_key_secret_name = "01-headscale-secure-web-gateway-ssh" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
+secure_web_gateway_vm_name       = "01-headscale-secure-web-gateway"
 secure_web_gateway_vm_memory     = 2
 secure_web_gateway_vm_ocpus      = 1
 secure_web_gateway_vm_source_id  = "ocid1.image.oc1.ap-singapore-1.aaaaaaaaovl4wfgvifzemo53rqy4dbotsx2xsus7y6j374urnxfrjhijkfqq"
 secure_web_gateway_vm_assign_public_ip = false
-secure_web_gateway_vm_hostname_label = "02headscalesecurewebgateway"
-secure_web_gateway_vm_ip_display_name = "02-headscale-secure-web-gateway-reserved-public-ip"
+secure_web_gateway_vm_hostname_label = "01headscalesecurewebgateway"
+secure_web_gateway_vm_ip_display_name = "01-headscale-secure-web-gateway-reserved-public-ip"
 secure_web_gateway_static_private_ip = "10.0.0.10" # private ips in the public subnet has "0" as the third digit
 
 # Computing Instance - Headscale VPN
-headscale_vm_ssh_key_secret_name = "02-headscale-headscale" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
-headscale_vm_name       = "02-headscale-headscale"
+headscale_vm_ssh_key_secret_name = "01-headscale-headscale" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
+headscale_vm_name       = "01-headscale-headscale"
 headscale_vm_memory     = 1
 headscale_vm_ocpus      = 1
 headscale_vm_source_id  = "ocid1.image.oc1.ap-singapore-1.aaaaaaaaovl4wfgvifzemo53rqy4dbotsx2xsus7y6j374urnxfrjhijkfqq"
 headscale_vm_assign_public_ip = false
-headscale_vm_hostname_label = "02headscaleheadscale"
+headscale_vm_hostname_label = "01headscaleheadscale"
 headscale_static_private_ip = "10.0.1.10" # private ips in the public subnet has "1" as the third digit
 
 # Computing Instance - Network Security Group - VPN & Secure Web Gateway
-secure_web_gateway_NSG_display_name = "02-headscale-secure-web-gateway-NSG"
-private_NSG_display_name = "02-headscale-private-VMs-NSG"
+secure_web_gateway_NSG_display_name = "01-headscale-secure-web-gateway-NSG"
+private_NSG_display_name = "01-headscale-private-VMs-NSG"
 reverse_proxy_forwarding_rules = {
     "headscale" = {
       backend_port = 8080
@@ -629,10 +632,104 @@ The Pterodactyl project mainly consists of two components.
 1) Pterodactyl Panel Docker Compose Stack - A Docker Compose stack that sets up the database, proxies, cache and other necessities so that the frontend called Pterodactyl Panel could run. This Docker Compose stack will run on a single compute instance running in a public subnet with a public ephemeral public IP address.
 2) Pterodactyl Wings - The backend server package needed for Pterodactyl Panel user interactions to carry out the server hosting, etc. This backend server package is usually ran on multiple separate compute instances but will run on the same compute instance as (1) to allow maximum CPU cores to utilised for running the server.
 
+---
 
 ### 6.4.2 - 02-pterodactyl - Configuration Example
+Below is the configuration example for the 02-pterodactyl project.
+Values that you must change are:
+1) tenancy_ocid
+2) user_ocid
+3) fingerprint
+4) private_key_path
+5) region
+6) second_root_compartment_ocid
+7) kms_main_vault_ocid
+8) kms_main_key_ocid
+9) your_duckdns_token
+10) gameserver_duckdns_domain_name
+11) game_server_tcp_ports (as required)
+12) game_server_udp_ports (as required)
+13) gameserver_vm_ssh_key_secret_name
+14) gameserver_pterodactyl_db_password_secret_name
+15) gameserver_pterodactyl_app_key_secret_name
+16) gameserver_backup_cron_expression
+17) gameserver_rclone_remote_name
+
+- 1-5 can be retrieved by following [this guide](#615-projects---general-instructions---finding-values-of-oci-provider-terraform-variables).
+- 6-8 will require you to log into your Oracle Cloud account and search for it (Tenancy Explorer & Key Management).
+- 9-10 would be from your DuckDNS account.
+- 11-12 would be based on the game you want to play (whichever ports for udp/tcp they need opening will be keyed in here).
+- 13-15 would be self declared secret names used to record sensitive values generated on terraform provision.
+- 16-17 would be self declared cron schedule and rclone remote name used in the setting up of cloud automated backup pipeline.
 
 
+```
+# Tenancy and User Information
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaaxexample"
+user_ocid        = "ocid1.user.oc1..aaaaaaaayexample"
+
+# Authentication
+fingerprint      = "20:3b:97:13:55:1c:..."
+private_key_path = "/workspace/.oci/oci_api_key.pem" # Set as the volume mounted path within Docker 
+
+# Infrastructure Region
+region           = "us-ashburn-1"
+
+# Compartments
+second_root_compartment_ocid ="ocid1.compartment.oc1..aaaaaaaaxexample"
+
+# kms resources
+kms_main_vault_ocid = "ocid1.vault.oc1.us-ashburn-1.example"
+kms_main_key_ocid = "ocid1.key.oc1.us-ashburn-1.example"
+
+# VCN
+vcn_name = "02-pterodactyl-vcn-1"
+vcn_dns_label = "p02vcn1"
+vcn_cidr_blocks = ["10.0.0.0/16"]
+main_vcn_public_subnet_dns_label = "public"
+main_vcn_public_subnet_cidr_block="10.0.0.0/24"
+
+
+# Computing Instance
+free_forever_ARM_compute_shape = "VM.Standard.A1.Flex"
+free_forever_AMD_compute_shape = "VM.Standard.E2.1.Micro" # currently this shape is out of stock. Hence I will not recommend trying to provision it in my current region
+
+
+# Computing Instance - Cloudinit script related Variables - DuckDNS configuration
+your_duckdns_token      = "insert_duckdns_token_from_duckdns_page"
+
+
+# Computing Instance - Game Server
+gameserver_vm_ssh_key_secret_name = "02-pterodactyl-forward-avatar" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
+gameserver_vm_name       = "02-pterodactyl-gameserver-vm-name"
+gameserver_vm_memory     = 24
+gameserver_vm_ocpus      = 4
+gameserver_vm_source_id  = "ocid1.compartment.oc1..aaaaaaaaxexample"
+gameserver_vm_assign_public_ip = true
+gameserver_vm_hostname_label = "02pterodactylhostnamelabel"
+
+# Computing Instance - Network Security Group - Game Server
+game_server_NSG_display_name = "02-pterodactyl-gameserver-NSG"
+game_server_tcp_ports = [80,443,8080,2022] # add your web ports and then game ports here (eg. 25565 is minecraft's port)
+game_server_udp_ports= [] # add your web ports and then game ports here (eg. 19132 is minecraft's bedrock port)
+
+
+# Computing Instance - Cloudinit script related Variables - Game Server (Pteradactyl Panel)
+gameserver_duckdns_domain_name="insert_duckdns_domainname_from_duckdns_page"
+gameserver_pterodactyl_db_password_secret_name="02-pterodactyl-db-password-secret-name" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
+gameserver_pterodactyl_app_key_secret_name = "02-pterodactyl-app-key-secret-name" # note that if `terraform destroy` is called, you will need to change this value as the previous instance of this object will go into a soft deletion 
+gameserver_github_raw_base_url="https://raw.githubusercontent.com/bestcolour/oracle-cloud-infrastructure/refs/heads/main"
+gameserver_github_repo_playbook_path="02-pterodactyl/main-compute-setup-gameserver-playbook.yml"
+gameserver_github_repo_maintain_playbook_path="02-pterodactyl/main-compute-manage-gameserver-playbook.yml"
+gameserver_github_repo_pterodactyl_docker_compose_path="02-pterodactyl/main-compute-setup-gameserver-ansible-pterodactyl-docker-compose.yml.j2"
+gameserver_github_repo_custom_shell_fix_path="02-pterodactyl/main-compute-setup-gameserver-custom-fix.sh"
+gameserver_github_repo_backup_script_path="02-pterodactyl/main-compute-setup-gameserver-backup-script.sh"
+gameserver_backup_cron_expression="25 * * * *" # how often you want the cloud backup to run
+gameserver_rclone_remote_name="pterodactly_mega_drive_backup" # name of your rclone remote configuration
+gameserver_rclone_remote_backup_path="pterodactyl_backups" # path of your cloud directory where you want to save the backups in
+```
+
+---
 
 ### 6.4.3 - 02-pterodactyl - Setup Guide
 
@@ -675,6 +772,9 @@ terraform apply
 9) Proceed to setup [a game server](#645---02-pterodactyl---usage-guide---setting-up-initial-configs) and [automated cloud backup](#646---02-pterodactyl---usage-guide---setting-up-automated-cloud-backup).
 
 Once done, keep the resulting `terraform.tfvars` file safe (e.g., in a secure password manager or encrypted file storage).
+
+
+---
 
 
 ### 6.4.4 - 02-pterodactyl - Troubleshooting Or Checking Status
@@ -795,6 +895,8 @@ Follow the instructions and sign up your admin account.
 
 ### 6.4.6 - 02-pterodactyl - Usage Guide - Setting up Automated Cloud Backup
 
+[Prerequisite - Enable & Setup Scheduled Backups](#649---02-pterodactyl---usage-guide---enabling--setting-up-scheduled-backups-on-pterodactyl)
+
 If you wish to utilise the automated cloud backup (ran by a dockerised rclone container) to backup the pterodactyl panel, wings and game servers data to your own cloud drive (eg. Mega, Google Cloud Drive, etc), read this guide.
 
 1) Assuming that you have keyed in a valid value for `gameserver_backup_cron_expression` in your `terraform.tfvars` file, SSH into your instance to setup your rclone configrations. You can follow the steps found in [here](#6341-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-setup-progress) before progressing.
@@ -817,9 +919,14 @@ Then, select your choice of cloud drive that you are using and follow the rest o
 
 3) Once that remote is created, the backup script will automatically run base off of the cron expression you've defined in `gameserver_backup_cron_expression` in your `terraform.tfvars` file.
 
+> It is crucial to have the local backup job scheduled before the cloud backup job so that the cloud backup job uploads the newly updated files
+
 ---
 
-### 6.4.6 - 02-pterodactyl - Usage Guide - Seeing Automated Cloud Backup Logs
+### 6.4.7 - 02-pterodactyl - Usage Guide - Seeing Automated Cloud Backup Logs
+
+[Prerequisite - Enable & Setup Scheduled Backups](#649---02-pterodactyl---usage-guide---enabling--setting-up-scheduled-backups-on-pterodactyl)
+
 To see the logs of the syncing process everytime the cronjob runs, run the following command:
 (You can change `50` to increase/decrease the number of lines you want to see)
 ```
@@ -828,7 +935,10 @@ tail -f /var/log/pterodactyl_backup.log -n 50
 
 ---
 
-### 6.4.7 - 02-pterodactyl - Usage Guide - Changing Cron Schedule for Automated Cloud Backup
+### 6.4.8 - 02-pterodactyl - Usage Guide - Changing Cron Schedule for Automated Cloud Backup
+
+[Prerequisite - Enable & Setup Scheduled Backups](#649---02-pterodactyl---usage-guide---enabling--setting-up-scheduled-backups-on-pterodactyl)
+
 To change the cron schedule expression after you have already provisioned and performed the initial setup for the automated cloud backup, run the following command:
 ```
 sudo crontab -e
@@ -839,9 +949,37 @@ Scroll down to find the previous cron schedule you have defined. It should look 
 30 2 * * * /usr/local/bin/pterodactyl-backup >> /var/log/pterodactyl_backup.log 2>&1
 ```
 
+> It is crucial to have the local backup job scheduled before the cloud backup job so that the cloud backup job uploads the newly updated files
+
+
 Change the `30 2 * * *` part to your new cron expression. Once again, you can use https://crontab.guru/ as a guide.
 
-Exit, save and you'e done!
+Exit, save and you're done!
+
+---
+
+### 6.4.9 - 02-pterodactyl - Usage Guide - Enabling & Setting up Scheduled Backups on Pterodactyl
+
+Before you can perform any sort of automated cloud backup in the following guides, [1](#646---02-pterodactyl---usage-guide---setting-up-automated-cloud-backup), [2](#647---02-pterodactyl---usage-guide---seeing-automated-cloud-backup-logs), [3](#648---02-pterodactyl---usage-guide---changing-cron-schedule-for-automated-cloud-backup), you will need to enable backups on your Pterodactyl game server.
+
+Why the local backup job needs to be configured first:
+1) The compute instance will perform a local backup job based on the schedule you choose on pterodactyl.
+2) Once the backup is saved successfully on the compute instance locally, the automated cloud backup will run (again based on your scheduled timing) to upload the new backup files to the cloud drive.
+3) It is crucial to have the local backup job scheduled before the cloud backup job.
+
+How to configure the local backup job:
+1) At the page where you have your admin page opened (the gear icon on the top right), click on "Servers" and click on your Game Server that you want to enable backups on.
+2) Click on "Manage" and click on "Build Configuration"
+3) Find the "Backup Limit" setting and set it to a limit that you desire and press "Update".
+4) On that same page, find the "open in new tab" icon (it looks like ↗ but with a 🗖 surrounding it)
+5) This provides a console view of the server's operations. Click on "Backup" and you can see that the backup feature is now available for your server.
+6) To ensure that a backup is scheduled, click on "Schedules" and click "Create Schedule"
+7) Key in your "Schedule Name" and define your schedule (in cron expression). Use the cheatsheet or https://crontab.guru/ for guidance.
+8) Click into your newly created Schedule and click "New Task".
+9) Select "Create Backup" for the "Action" dropdown and press "Save"
+10) That's it!
+
+
 
 ---
 ---
