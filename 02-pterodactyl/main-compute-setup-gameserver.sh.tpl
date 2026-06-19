@@ -127,7 +127,7 @@ BACKUP_RCLONE_REMOTE_NAME="${gameserver_rclone_remote_name}"
 MAINTAIN_PLAYBOOK_SUBPATH="${gameserver_github_repo_maintain_playbook_path}"
 
 echo "Downloading deployment playbook and Jinja2 templates directly from GitHub version control..."
-curl -sSL "$GITHUB_RAW_BASE/$PLAYBOOK_SUBPATH" -o /tmp/set_up_playbook.yml
+curl -sSL "$GITHUB_RAW_BASE/$PLAYBOOK_SUBPATH" -o /tmp/playbook.yml
 curl -sSL "$GITHUB_RAW_BASE/$PTERODACTLY_DOCKER_COMPOSE_SUBPATH" -o /tmp/docker-compose.yml.j2
 
 # --- DOWNLOAD FIX SCRIPT ---
