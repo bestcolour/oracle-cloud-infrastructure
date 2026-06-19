@@ -73,10 +73,11 @@ This repo holds all the golden source code for setting up my own app annd cloud 
 
 ## 4.1 Project Structure - Folder Organization Explanation
 
+```
 00-bootstrap/ — Foundation setup (KMS vault, state storage, compartments)
 01-headscale/ — Headscale VPN deployment
 02-pterodactyl/ — Game server management (Pterodactyl panel)
-
+```
 
 ---
 ---
@@ -982,11 +983,28 @@ How to configure the local backup job:
 
 
 ---
+
+### 6.4.10 - 02-pterodactyl - Usage Guide - Changing Versions of Apps Used
+
+For this project, there are a couple of files that you can look into to modify the versions of the applications used:
+1) ARM64 Pterodactyl Wings runtime binary: main-compute-setup-gameserver-playbook in "Fetch and deploy ARM64 Pterodactyl Wings runtime binary"
+2) Pterodactyl App Docker Compose Stack: main-compute-setup-gameserver-ansible-pterodactyl-docker-compose.yml
+
+---
+
+### 6.4.11 - 02-pterodactyl - Usage Guide - Opening More Game Ports for New Games
+
+To open more game ports for when adding new games, simply add the values into `game_server_tcp_ports` & `game_server_udp_ports` in `terraform.tfvars` file before running `terraform apply` (this opens up the tcp and udp port the cloud level). 
+
+Then, SSH into the compute instance and run the following commands with your new port `game_server_tcp_ports` & `game_server_udp_ports` values inserted:
+```
+ansible-playbook /tmp/maintain_playbook.yml -e "gameserver_tcp_ports_to_open='8080 8443' gameserver_udp_ports_to_open='5000 5001'"
+```
+This opens up the tcp and udp ports on the OS level.
+
 ---
 ---
-
-
-
+---
 
 
 
