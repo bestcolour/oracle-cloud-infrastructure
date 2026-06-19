@@ -638,9 +638,9 @@ The Pterodactyl project mainly consists of two components.
 
 1) Make sure you create a fresh DuckDNS sub domain to reduce any likelihood of the DuckDNS failing the Certbot challenge.
 
-2) Create a `backend-config.tfvars` file with guidance of the [00bootstrap Usage](#623-projects---00-bootstrap---usage) section and place them in the folder `01-headscale`.
+2) Create a `backend-config.tfvars` file with guidance of the [00bootstrap Usage](#623-projects---00-bootstrap---usage) section and place them in the folder `02-pterodactyl`.
 
-3) Create a `terraform.tfvars` file with guidance of the [01 Headscale Configuration Example](#622-projects---01-headscale---configuration-example) section and place them in the folder `01-headscale`.
+3) Create a `terraform.tfvars` file with guidance of the [02 Pterodactyl Configuration Example](#642---02-pterodactyl---configuration-example) section and place them in the folder `02-pterodactyl`.
 
 4) Start up terraform
 ```bash
@@ -672,6 +672,7 @@ terraform apply
 
 8) Now wait for approximately 15 to 30 minutes for the entire automated process to finish. If you want to check on the status of the cloud resources go to [this section](#644---02-pterodactyl---troubleshooting-or-checking-status)
 
+9) Proceed to setup [a game server](#645---02-pterodactyl---usage-guide---setting-up-initial-configs) and [automated cloud backup](#646---02-pterodactyl---usage-guide---setting-up-automated-cloud-backup).
 
 Once done, keep the resulting `terraform.tfvars` file safe (e.g., in a secure password manager or encrypted file storage).
 
@@ -679,13 +680,13 @@ Once done, keep the resulting `terraform.tfvars` file safe (e.g., in a secure pa
 ### 6.4.4 - 02-pterodactyl - Troubleshooting Or Checking Status
 
 
-#### 6.3.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Panel Operational
+#### 6.4.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Panel Operational
 
 To check if the Pterodactyl Panel server is up and operational, simply go to your browser and type in `<gameserver_duckdns_domain_name>.duckdns.org`. If you see a login page and a Pterodactyl logo, then the Pterodactyl Panel deployment was successful.
 
 ---
 
-#### 6.3.4.2 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Setup Progress
+#### 6.3.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Setup Progress
 
 To check if the Pterodactyl app is still setting up or is running into any issues, we can SSH into the compute instance.
 
@@ -726,11 +727,11 @@ tail -f /var/log/cloud-init-output.log -n 50
 
 
 
-### 6.4.5 - 02-pterodactyl - Usage Guide
+### 6.4.5 - 02-pterodactyl - Usage Guide - Setting up Initial Configs
 
 1) Once the provisioned compute instance has been setup, we will need to create an admin account for management purposes.
 
-SSH into the Pterodactyl instance by following [the "Check Pterodactyl Setup Progress Guide"](#6342-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-setup-progress).
+SSH into the Pterodactyl instance by following [the "Check Pterodactyl Setup Progress Guide"](#6341-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-setup-progress).
 
 Once inside your server, navigate to the directory where your game server setup and `docker-compose.yml` file live. 
 
@@ -788,6 +789,59 @@ Follow the instructions and sign up your admin account.
 	4) Configured the Pterodactyl Wings machine so that it can communicate with the Pterodactyl Panel app and could spin up game servers
 8) You can now create your own servers for Minecraft, Rust, etc!
 
+
+---
+
+
+### 6.4.6 - 02-pterodactyl - Usage Guide - Setting up Automated Cloud Backup
+
+If you wish to utilise the automated cloud backup (ran by a dockerised rclone container) to backup the pterodactyl panel, wings and game servers data to your own cloud drive (eg. Mega, Google Cloud Drive, etc), read this guide.
+
+1) Assuming that you have keyed in a valid value for `gameserver_backup_cron_expression` in your `terraform.tfvars` file, SSH into your instance to setup your rclone configrations. You can follow the steps found in [here](#6341-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-setup-progress) before progressing.
+
+2) To allow the automated cloud backup to work, you need to create a rclone remote configuration with you cloud drive's credentials so that it could upload the files into your account.
+
+Run this code first to give permision to your rclone container:
+```
+sudo chown -R "$(id -u):$(id -g)" /etc/rclone
+```
+
+Setup your rclone config by running the following commands:
+```
+sudo docker run -it --rm --volume /etc/rclone:/config/rclone --user $(id -u):$(id -g) rclone/rclone config
+```
+
+Follow the instructions to create a new remote (press n). Make sure that the name you give that remote matches the `gameserver_rclone_remote_name` variable value you set in `terraform.tfvars`.
+
+Then, select your choice of cloud drive that you are using and follow the rest of the wizard's instructions. Read more [here](https://rclone.org/).
+
+3) Once that remote is created, the backup script will automatically run base off of the cron expression you've defined in `gameserver_backup_cron_expression` in your `terraform.tfvars` file.
+
+---
+
+### 6.4.6 - 02-pterodactyl - Usage Guide - Seeing Automated Cloud Backup Logs
+To see the logs of the syncing process everytime the cronjob runs, run the following command:
+(You can change `50` to increase/decrease the number of lines you want to see)
+```
+tail -f /var/log/pterodactyl_backup.log -n 50
+```
+
+---
+
+### 6.4.7 - 02-pterodactyl - Usage Guide - Changing Cron Schedule for Automated Cloud Backup
+To change the cron schedule expression after you have already provisioned and performed the initial setup for the automated cloud backup, run the following command:
+```
+sudo crontab -e
+```
+
+Scroll down to find the previous cron schedule you have defined. It should look something like this:
+```
+30 2 * * * /usr/local/bin/pterodactyl-backup >> /var/log/pterodactyl_backup.log 2>&1
+```
+
+Change the `30 2 * * *` part to your new cron expression. Once again, you can use https://crontab.guru/ as a guide.
+
+Exit, save and you'e done!
 
 ---
 ---
