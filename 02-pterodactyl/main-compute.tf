@@ -190,6 +190,13 @@ variable "gameserver_backup_cron_expression" {
 variable "gameserver_rclone_remote_name" {
   type        = string
   description = "The rclone remote name which you will have to later manually type into after the compute instance's setup is done (one time setup). This setup process will then require you to type in your cloud storage account credentials."
+  default = "pterodactyl_cloud_backup"
+}
+
+variable "gameserver_rclone_remote_backup_path" {
+  type        = string
+  description = "The rclone remote path defines where the automated cloud drive backup files will be synced to. For example, if the value is set to 'pterodactyl_backups', then the backup data will appear inside of the folder 'pterodactyl_backups' located at the root of your cloud drive."
+  default = "pterodactyl_backups"
 }
 
 data "oci_secrets_secretbundle" "gameserver_pterodactyl_app_key_bundle" {
@@ -268,6 +275,7 @@ resource "oci_core_instance" "gameserver_vm" {
           gameserver_github_repo_backup_script_path=var.gameserver_github_repo_backup_script_path
           gameserver_backup_cron_expression=var.gameserver_backup_cron_expression
           gameserver_rclone_remote_name=var.gameserver_rclone_remote_name
+          gameserver_rclone_remote_backup_path=var.gameserver_rclone_remote_backup_path
           gameserver_github_repo_maintain_playbook_path=var.gameserver_github_repo_maintain_playbook_path
         }
         )
