@@ -124,6 +124,7 @@ PTERODACTLY_DOCKER_COMPOSE_SUBPATH="${gameserver_github_repo_pterodactyl_docker_
 CUSTOM_SHELL_FIX_SUBPATH="${gameserver_github_repo_custom_shell_fix_path}" # this shell fix is ran for after configuring a new node
 BACKUP_SCRIPT_SUBPATH="${gameserver_github_repo_backup_script_path}" 
 BACKUP_RCLONE_REMOTE_NAME="${gameserver_rclone_remote_name}"
+BACKUP_RCLONE_REMOTE_PATH="${gameserver_rclone_remote_backup_path}"
 MAINTAIN_PLAYBOOK_SUBPATH="${gameserver_github_repo_maintain_playbook_path}"
 
 echo "Downloading deployment playbook and Jinja2 templates directly from GitHub version control..."
@@ -141,6 +142,7 @@ chmod +x /usr/local/bin/apply-wings-fixes
 echo "Downloading backup cronjob script..."
 curl -sSL "$GITHUB_RAW_BASE/$BACKUP_SCRIPT_SUBPATH" -o /usr/local/bin/pterodactyl-backup
 sed -i "s/pterodactyl_cloud_backup/$BACKUP_RCLONE_REMOTE_NAME/g" /usr/local/bin/pterodactyl-backup
+sed -i "s/pterodactyl_backups/$BACKUP_RCLONE_REMOTE_PATH/g" /usr/local/bin/pterodactyl-backup
 chmod +x /usr/local/bin/pterodactyl-backup
 # sudo pterodactyl-backup
 
