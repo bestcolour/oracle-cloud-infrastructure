@@ -77,14 +77,6 @@
         - { path: '/var/lib/pterodactyl' }
         - { path: '/etc/rclone' } # used for backups
 
-    - name: Ensure /etc/rclone has correct ownership recursively
-      ansible.builtin.file:
-        path: /etc/rclone
-        state: directory
-        recurse: yes
-        owner: "{{ ansible_user_uid }}"
-        group: "{{ ansible_user_gid }}"
-      become: true
 
     - name: Deploy MariaDB database client skip-ssl override configurations
       ansible.builtin.copy:
