@@ -124,9 +124,10 @@ PTERODACTLY_DOCKER_COMPOSE_SUBPATH="${gameserver_github_repo_pterodactyl_docker_
 CUSTOM_SHELL_FIX_SUBPATH="${gameserver_github_repo_custom_shell_fix_path}" # this shell fix is ran for after configuring a new node
 BACKUP_SCRIPT_SUBPATH="${gameserver_github_repo_backup_script_path}" 
 BACKUP_RCLONE_REMOTE_NAME="${gameserver_rclone_remote_name}"
+MAINTAIN_PLAYBOOK_SUBPATH="${gameserver_github_repo_maintain_playbook_path}"
 
 echo "Downloading deployment playbook and Jinja2 templates directly from GitHub version control..."
-curl -sSL "$GITHUB_RAW_BASE/$PLAYBOOK_SUBPATH" -o /tmp/playbook.yml
+curl -sSL "$GITHUB_RAW_BASE/$PLAYBOOK_SUBPATH" -o /tmp/set_up_playbook.yml
 curl -sSL "$GITHUB_RAW_BASE/$PTERODACTLY_DOCKER_COMPOSE_SUBPATH" -o /tmp/docker-compose.yml.j2
 
 # --- DOWNLOAD FIX SCRIPT ---
@@ -142,6 +143,11 @@ curl -sSL "$GITHUB_RAW_BASE/$BACKUP_SCRIPT_SUBPATH" -o /usr/local/bin/pterodacty
 sed -i "s/pterodactyl_cloud_backup/$BACKUP_RCLONE_REMOTE_NAME/g" /usr/local/bin/pterodactyl-backup
 chmod +x /usr/local/bin/pterodactyl-backup
 # sudo pterodactyl-backup
+
+# --- DOWNLOAD MAINTAIN PLAYBOOK ---
+echo "Downloading maintain state ansible playbook..."
+curl -sSL "$GITHUB_RAW_BASE/$MAINTAIN_PLAYBOOK_SUBPATH" -o /tmp/maintain_playbook.yml
+
 
 echo "Injecting secret state and environment mappings into localized Ansible values context file..."
 cat <<EOF > /tmp/vars.yml

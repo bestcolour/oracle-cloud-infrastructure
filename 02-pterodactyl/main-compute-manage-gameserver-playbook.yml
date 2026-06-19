@@ -1,0 +1,37 @@
+---
+- name: Update Pterodactyl Firewall Rules
+  hosts: localhost
+  connection: local
+  become: true
+  vars:
+    gameserver_tcp_ports: "{{ gameserver_tcp_ports_to_open | default('') | split(' ') if gameserver_tcp_ports_to_open is string else gameserver_tcp_ports_to_open }}"
+    gameserver_udp_ports: "{{ gameserver_udp_ports_to_open | default('') | split(' ') if gameserver_udp_ports_to_open is string else gameserver_udp_ports_to_open }}"
+
+  tasks:
+    - name: Inject explicit TCP rules into iptables
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: insert
+        rule_num: 5
+        protocol: tcp
+        destination_port: "{{ item }}"
+        ctstate: NEW
+        jump: ACCEPT
+      loop: "{{ gameserver_tcp_ports }}"
+      when: item | trim != ''
+    
+    - name: Inject explicit UDP rules into OCI iptables chain (Position 5)
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: insert
+        rule_num: 5
+        protocol: udp
+        destination_port: "{{ item }}"
+        ctstate: NEW
+        jump: ACCEPT
+      loop: "{{ gameserver_udp_ports }}"
+      when: item | trim != ''
+
+    - name: Save iptables configuration
+      ansible.builtin.command: netfilter-persistent save
+      changed_when: true
