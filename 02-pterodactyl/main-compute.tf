@@ -162,6 +162,11 @@ variable "gameserver_github_repo_playbook_path" {
   description = "The relative repository path or file name for the Ansible deployment playbook (playbook.yml) used to provision systems, configure firewall rules, and deploy the Pterodactyl stack."
 }
 
+variable "gameserver_github_repo_maintain_playbook_path" {
+  type        = string
+  description = "The relative repository path or file name for the Ansible manage playbook used to manage firewall rules the Pterodactyl stack."
+}
+
 variable "gameserver_github_repo_pterodactyl_docker_compose_path" {
   type        = string
   description = "The relative repository path or file name for the Jinja2 template of the Docker Compose stack (docker-compose.yml.j2) used to generate the production application containers."
@@ -263,6 +268,7 @@ resource "oci_core_instance" "gameserver_vm" {
           gameserver_github_repo_backup_script_path=var.gameserver_github_repo_backup_script_path
           gameserver_backup_cron_expression=var.gameserver_backup_cron_expression
           gameserver_rclone_remote_name=var.gameserver_rclone_remote_name
+          gameserver_github_repo_maintain_playbook_path=var.gameserver_github_repo_maintain_playbook_path
         }
         )
       )
