@@ -18,7 +18,80 @@ This repo holds all the golden source code for setting up my own app annd cloud 
 ---
 
 # 2. Table of Contents
-   - Quick navigation to major sections
+Here is the generated Table of Contents with Markdown anchor links for your headings.
+
+---
+
+## Table of Contents
+
+* [1. Introduction](#1-introduction)
+  * [1.1 Introduction - Project Title: Personal Oracle Cloud Infrastructure Projects](#11-introduction---project-title-personal-oracle-cloud-infrastructure-projects)
+
+
+* [2. Table of Contents](#2-table-of-contents)
+* [3 Architecture Overview](#3-architecture-overview)
+* [3.1 Architecture Overview - Architecture Diagram](#31-architecture-overview---architecture-diagram)
+* [3.2 Architecture Overview - Key Components](#32-architecture-overview---key-components)
+* [3.3 Architecture Overview - Technologies Used](#33-architecture-overview---technologies-used)
+* [3.4 Architecture Overview - Design Philosophy](#34-architecture-overview---design-philosophy)
+
+
+* [4 Project Structure](#4-project-structure)
+* [4.1 Project Structure - Folder Organization Explanation](#41-project-structure---folder-organization-explanation)
+
+
+* [5 General Prerequisites & Requirements](#5-general-prerequisites--requirements)
+* [6 Projects](#6-projects)
+  * [6.1 Projects - General Instructions](#61-projects---general-instructions)
+    * [6.1.1 Projects - General Instructions - How to use terraform](#611-projects---general-instructions---how-to-use-terraform)
+    * [6.1.2 Projects - General Instructions - Verify if Oracle Cloud Provider Works](#612-projects---general-instructions---verify-if-oracle-cloud-provider-works)
+    * [6.1.3 Projects - General Instructions - Retrieving SSH key to the compute instance](#613-projects---general-instructions---retrieving-ssh-key-to-the-compute-instance)
+    * [6.1.4 Projects - General Instructions - SSH to a private VM located within the private subnet](#614-projects---general-instructions---ssh-to-a-private-vm-located-within-the-private-subnet)
+    * [6.1.5 Projects - General Instructions - Finding Values Of OCI Provider Terraform Variables](#615-projects---general-instructions---finding-values-of-oci-provider-terraform-variables)
+    * [6.1.5.1 Projects - General Instructions - Finding Values Of OCI Provider Terraform Variables - Tenancy OCID](#6151-projects---general-instructions---finding-values-of-oci-provider-terraform-variables---tenancy-ocid)
+    * [6.1.5.2 Projects - General Instructions - Finding Values Of OCI Provider Terraform Variables - User OCID](#6152-projects---general-instructions---finding-values-of-oci-provider-terraform-variables---user-ocid)
+    * [6.1.5.3 Projects - General Instructions - Finding Values Of OCI Provider Terraform Variables - Fingerprint & Private Key Path](#6153-projects---general-instructions---finding-values-of-oci-provider-terraform-variables---fingerprint--private-key-path)
+    * [6.1.5.4 Projects - General Instructions - Finding Values Of OCI Provider Terraform Variables - Region](#6154-projects---general-instructions---finding-values-of-oci-provider-terraform-variables---region)
+
+  * [6.2 Projects - 00-bootstrap](#62-projects---00-bootstrap)
+    * [6.2.1 Projects - 00-bootstrap - Description](#621-projects---00-bootstrap---description)
+    * [6.2.2 Projects - 00-bootstrap - Setup Guide](#622-projects---00-bootstrap---setup-guide)
+    * [6.2.3 Projects - 00-bootstrap - Usage](#623-projects---00-bootstrap---usage)
+
+
+  * [6.3 Projects - 01-headscale](#63-projects---01-headscale)
+    * [6.3.1 Projects - 01-headscale - Description](#631-projects---01-headscale---description)
+    * [6.3.2 Projects - 01-headscale - Configuration Example](#632-projects---01-headscale---configuration-example)
+    * [6.3.3 Projects - 01-headscale - Setup Guide](#633-projects---01-headscale---setup-guide)
+    * [6.3.4 Projects - 01-headscale - Troubleshooting Or Checking Status](#634-projects---01-headscale---troubleshooting-or-checking-status)
+      * [6.3.4.1 Projects - 01-headscale - Troubleshooting Or Checking Status - Check Headscale Control Server Operational](#6341-projects---01-headscale---troubleshooting-or-checking-status---check-headscale-control-server-operational)
+      * [6.3.4.2 Projects - 01-headscale - Troubleshooting Or Checking Status - Check Secure Web Gateway Compute Instance Setup Progress](#6342-projects---01-headscale---troubleshooting-or-checking-status---check-secure-web-gateway-compute-instance-setup-progress)
+      * [6.3.4.3 Projects - 01-headscale - Troubleshooting Or Checking Status - Check Headscale Compute Instance Setup Progress](#6343-projects---01-headscale---troubleshooting-or-checking-status---check-headscale-compute-instance-setup-progress)
+    * [6.3.5 Projects - 01-headscale - Usage Guide](#635-projects---01-headscale---usage-guide)
+
+
+* [6.4 Projects - 02-pterodactyl](#64-projects---02-pterodactyl)
+  * [6.4.1 - 02-pterodactyl - Description](#641---02-pterodactyl---description)
+  * [6.4.2 - 02-pterodactyl - Configuration Example](#642---02-pterodactyl---configuration-example)
+  * [6.4.3 - 02-pterodactyl - Setup Guide](#643---02-pterodactyl---setup-guide)
+  * [6.4.4 - 02-pterodactyl - Troubleshooting Or Checking Status](#644---02-pterodactyl---troubleshooting-or-checking-status)
+    * [6.4.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Panel Operational](#6441-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-panel-operational)
+    * [6.3.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Setup Progress](#6341-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-setup-progress)
+
+
+  * [6.4.5 - 02-pterodactyl - Usage Guide - Setting up Initial Configs](#645---02-pterodactyl---usage-guide---setting-up-initial-configs)
+  * [6.4.6 - 02-pterodactyl - Usage Guide - Setting up Automated Cloud Backup](#646---02-pterodactyl---usage-guide---setting-up-automated-cloud-backup)
+  * [6.4.7 - 02-pterodactyl - Usage Guide - Seeing Automated Cloud Backup Logs](#647---02-pterodactyl---usage-guide---seeing-automated-cloud-backup-logs)
+  * [6.4.8 - 02-pterodactyl - Usage Guide - Changing Cron Schedule for Automated Cloud Backup](#648---02-pterodactyl---usage-guide---changing-cron-schedule-for-automated-cloud-backup)
+  * [6.4.9 - 02-pterodactyl - Usage Guide - Enabling & Setting up Scheduled Backups on Pterodactyl](#649---02-pterodactyl---usage-guide---enabling--setting-up-scheduled-backups-on-pterodactyl)
+  * [6.4.10 - 02-pterodactyl - Usage Guide - Changing Versions of Apps Used](#6410---02-pterodactyl---usage-guide---changing-versions-of-apps-used)
+  * [6.4.11 - 02-pterodactyl - Usage Guide - Opening More Game Ports for New Games](#6411---02-pterodactyl---usage-guide---opening-more-game-ports-for-new-games)
+
+
+
+
+* [Common Troubleshooting Issues](#common-troubleshooting-issues)
+* [Unable to lookup backend tf state Object Storage, server misbehaving](#unable-to-lookup-backend-tf-state-object-storage-server-misbehaving)
 
 ---
 ---
