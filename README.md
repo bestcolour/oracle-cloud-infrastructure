@@ -70,28 +70,28 @@ Here is the generated Table of Contents with Markdown anchor links for your head
     * [6.3.5 Projects - 01-headscale - Usage Guide](#635-projects---01-headscale---usage-guide)
 
 
-* [6.4 Projects - 02-pterodactyl](#64-projects---02-pterodactyl)
-  * [6.4.1 - 02-pterodactyl - Description](#641---02-pterodactyl---description)
-  * [6.4.2 - 02-pterodactyl - Configuration Example](#642---02-pterodactyl---configuration-example)
-  * [6.4.3 - 02-pterodactyl - Setup Guide](#643---02-pterodactyl---setup-guide)
-  * [6.4.4 - 02-pterodactyl - Troubleshooting Or Checking Status](#644---02-pterodactyl---troubleshooting-or-checking-status)
-    * [6.4.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Panel Operational](#6441-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-panel-operational)
-    * [6.3.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Setup Progress](#6341-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-setup-progress)
+  * [6.4 Projects - 02-pterodactyl](#64-projects---02-pterodactyl)
+    * [6.4.1 - 02-pterodactyl - Description](#641---02-pterodactyl---description)
+    * [6.4.2 - 02-pterodactyl - Configuration Example](#642---02-pterodactyl---configuration-example)
+    * [6.4.3 - 02-pterodactyl - Setup Guide](#643---02-pterodactyl---setup-guide)
+    * [6.4.4 - 02-pterodactyl - Troubleshooting Or Checking Status](#644---02-pterodactyl---troubleshooting-or-checking-status)
+      * [6.4.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Panel Operational](#6441-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-panel-operational)
+      * [6.3.4.1 Projects - 02-pterodactyl - Troubleshooting Or Checking Status - Check Pterodactyl Setup Progress](#6341-projects---02-pterodactyl---troubleshooting-or-checking-status---check-pterodactyl-setup-progress)
 
 
-  * [6.4.5 - 02-pterodactyl - Usage Guide - Setting up Initial Configs](#645---02-pterodactyl---usage-guide---setting-up-initial-configs)
-  * [6.4.6 - 02-pterodactyl - Usage Guide - Setting up Automated Cloud Backup](#646---02-pterodactyl---usage-guide---setting-up-automated-cloud-backup)
-  * [6.4.7 - 02-pterodactyl - Usage Guide - Seeing Automated Cloud Backup Logs](#647---02-pterodactyl---usage-guide---seeing-automated-cloud-backup-logs)
-  * [6.4.8 - 02-pterodactyl - Usage Guide - Changing Cron Schedule for Automated Cloud Backup](#648---02-pterodactyl---usage-guide---changing-cron-schedule-for-automated-cloud-backup)
-  * [6.4.9 - 02-pterodactyl - Usage Guide - Enabling & Setting up Scheduled Backups on Pterodactyl](#649---02-pterodactyl---usage-guide---enabling--setting-up-scheduled-backups-on-pterodactyl)
-  * [6.4.10 - 02-pterodactyl - Usage Guide - Changing Versions of Apps Used](#6410---02-pterodactyl---usage-guide---changing-versions-of-apps-used)
-  * [6.4.11 - 02-pterodactyl - Usage Guide - Opening More Game Ports for New Games](#6411---02-pterodactyl---usage-guide---opening-more-game-ports-for-new-games)
+    * [6.4.5 - 02-pterodactyl - Usage Guide - Setting up Initial Configs](#645---02-pterodactyl---usage-guide---setting-up-initial-configs)
+    * [6.4.6 - 02-pterodactyl - Usage Guide - Setting up Automated Cloud Backup](#646---02-pterodactyl---usage-guide---setting-up-automated-cloud-backup)
+    * [6.4.7 - 02-pterodactyl - Usage Guide - Seeing Automated Cloud Backup Logs](#647---02-pterodactyl---usage-guide---seeing-automated-cloud-backup-logs)
+    * [6.4.8 - 02-pterodactyl - Usage Guide - Changing Cron Schedule for Automated Cloud Backup](#648---02-pterodactyl---usage-guide---changing-cron-schedule-for-automated-cloud-backup)
+    * [6.4.9 - 02-pterodactyl - Usage Guide - Enabling & Setting up Scheduled Backups on Pterodactyl](#649---02-pterodactyl---usage-guide---enabling--setting-up-scheduled-backups-on-pterodactyl)
+    * [6.4.10 - 02-pterodactyl - Usage Guide - Changing Versions of Apps Used](#6410---02-pterodactyl---usage-guide---changing-versions-of-apps-used)
+    * [6.4.11 - 02-pterodactyl - Usage Guide - Opening More Game Ports for New Games](#6411---02-pterodactyl---usage-guide---opening-more-game-ports-for-new-games)
 
 
 
 
-* [Common Troubleshooting Issues](#common-troubleshooting-issues)
-* [Unable to lookup backend tf state Object Storage, server misbehaving](#unable-to-lookup-backend-tf-state-object-storage-server-misbehaving)
+* [7 Common Troubleshooting Issues](#7-common-troubleshooting-issues)
+  * [7.1 Common Troubleshooting Issues - Unable to lookup backend tf state Object Storage, server misbehaving](#71-common-troubleshooting-issues---unable-to-lookup-backend-tf-state-object-storage-server-misbehaving)
 
 ---
 ---
@@ -1082,9 +1082,9 @@ This opens up the tcp and udp ports on the OS level.
 
 
 
-# Common Troubleshooting Issues
+# 7 Common Troubleshooting Issues
 
-## Unable to lookup backend tf state Object Storage, server misbehaving 
+## 7.1 Common Troubleshooting Issues - Unable to lookup backend tf state Object Storage, server misbehaving 
 
 ```
 │ Error: Failed to get existing workspaces: Get "redacted": dial tcp: lookup objectstorage.redacted.oraclecloud.com on 127.0.0.11:53: server misbehaving 
