@@ -10,7 +10,7 @@ This repo holds all the golden source code for setting up my own app annd cloud 
 |-------|-----|------------|
 | 00-bootstrap | Provision underlying security and terraform state sync infrastructure used for all other projects. | DONE   |
 | 01-headscale  | Provision and setup a private Headscale VPN Control Server compute instance behind a public dual proxy compute instance. | DONE |
-| 02-pterodactyl  | Provision and setup Pterodactyl Panel (frontend) & Pterodactyl Wings (backend) on the same public compute instance for maximum game server capabilities. | WIP (still need to setup backup cronjob) |
+| 02-pterodactyl  | Provision and setup Pterodactyl Panel (frontend) & Pterodactyl Wings (backend) on the same public compute instance for maximum game server capabilities. | DONE |
 
 
 ---
